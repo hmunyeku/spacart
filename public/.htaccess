@@ -1,0 +1,12 @@
+# SpaCart URL Rewrite
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /custom/spacart/public/
+
+    # Don't rewrite files or directories
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Rewrite everything to index.php
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>

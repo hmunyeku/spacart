@@ -1,0 +1,55 @@
+# SpaCart - English translations
+# Copyright (C) 2024-2026 CoexDis
+
+Module500100Name = SpaCart
+Module500100Desc = SPA Online Shop module integrated with Dolibarr
+
+SpaCartSetup = SpaCart Configuration
+Configuration = Configuration
+GeneralSettings = General Settings
+PaymentSettings = Payment Settings
+ThemeSettings = Appearance
+ShopTitle = Shop Title
+CompanyName = Company Name
+CompanyEmail = Company Email
+CompanySlogan = Slogan
+Currency = Currency
+CurrencySymbol = Currency Symbol
+WeightSymbol = Weight Unit
+ProductsPerPage = Products Per Page
+GuestCheckout = Allow Guest Checkout
+ThemeColor = Primary Color
+ThemeColor2 = Secondary Color
+ShopClosed = Shop Closed
+FreeShippingThreshold = Free Shipping Above
+AbandonedCartDelay = Abandoned Cart Reminder Delay (hours)
+
+StripeSettings = Stripe Settings
+StripePublishableKey = Stripe Publishable Key
+StripeSecretKey = Stripe Secret Key
+StripeWebhookSecret = Stripe Webhook Secret
+
+PayPalSettings = PayPal Settings
+PayPalClientId = PayPal Client ID
+PayPalSecret = PayPal Secret
+PayPalSandbox = PayPal Sandbox Mode
+
+BraintreeSettings = Braintree Settings
+BraintreeMerchantId = Braintree Merchant ID
+BraintreePublicKey = Braintree Public Key
+BraintreePrivateKey = Braintree Private Key
+BraintreeSandbox = Braintree Sandbox Mode
+
+ShoppingCart = Shopping Cart
+AddToCart = Add to Cart
+ProceedToCheckout = Proceed to Checkout
+Checkout = Checkout
+PlaceOrder = Place Order
+OrderConfirmation = Order Confirmation
+OrderThankYou = Thank you for your order!
+
+Dashboard = Dashboard
+TotalOrders = Total Orders
+TotalRevenue = Total Revenue
+TotalCustomers = Total Customers
+ViewShop = View Shop

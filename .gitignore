@@ -1,0 +1,22 @@
+# Cache
+cache/
+*.cache
+
+# Vendor (using Dolibarr's built-in SDKs)
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env

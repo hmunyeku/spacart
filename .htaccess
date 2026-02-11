@@ -1,0 +1,51 @@
+# SpaCart - Module root .htaccess
+# API URL rewriting and security
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /custom/spacart/
+
+    # API routes: /custom/spacart/api/endpoint → api/index.php?route=endpoint
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^api/(.*)$ api/index.php?route=$1 [QSA,L]
+</IfModule>
+
+# Block direct access to sensitive files
+<FilesMatch "\.(inc\.php|sql|md|json|lock)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Allow composer.json to be blocked
+<Files "composer.json">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</Files>
+
+# Protect vendor directory
+<IfModule mod_rewrite.c>
+    RewriteRule ^vendor/ - [F,L]
+</IfModule>
+
+# Cache static assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>
+
+# Gzip compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>

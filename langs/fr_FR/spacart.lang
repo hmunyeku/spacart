@@ -1,0 +1,189 @@
+# SpaCart - French translations
+# Copyright (C) 2024-2026 CoexDis
+
+# Module
+Module500100Name = SpaCart
+Module500100Desc = Module de vente en ligne SPA integre a Dolibarr
+
+# Admin
+SpaCartSetup = Configuration SpaCart
+SpaCartAbout = A propos de SpaCart
+Configuration = Configuration
+GeneralSettings = Parametres generaux
+PaymentSettings = Paiements
+ThemeSettings = Apparence
+ShopTitle = Titre de la boutique
+CompanyName = Nom de l'entreprise
+CompanyEmail = Email de l'entreprise
+CompanySlogan = Slogan
+Currency = Devise
+CurrencySymbol = Symbole devise
+WeightSymbol = Unite de poids
+ProductsPerPage = Produits par page
+GuestCheckout = Autoriser le checkout invite
+ThemeColor = Couleur principale
+ThemeColor2 = Couleur secondaire
+ShopClosed = Boutique fermee
+FreeShippingThreshold = Livraison gratuite a partir de
+AbandonedCartDelay = Delai rappel panier abandonne (heures)
+
+# Stripe
+StripeSettings = Parametres Stripe
+StripePublishableKey = Cle publique Stripe
+StripeSecretKey = Cle secrete Stripe
+StripeWebhookSecret = Secret webhook Stripe
+
+# PayPal
+PayPalSettings = Parametres PayPal
+PayPalClientId = Client ID PayPal
+PayPalSecret = Secret PayPal
+PayPalSandbox = Mode sandbox PayPal
+
+# Braintree
+BraintreeSettings = Parametres Braintree
+BraintreeMerchantId = Merchant ID Braintree
+BraintreePublicKey = Cle publique Braintree
+BraintreePrivateKey = Cle privee Braintree
+BraintreeSandbox = Mode sandbox Braintree
+
+# SEO & Integrations
+RecaptchaSiteKey = Cle site reCAPTCHA
+RecaptchaSecretKey = Cle secrete reCAPTCHA
+TawkToId = ID widget Tawk.to
+AnalyticsId = ID Google Analytics
+
+# Shipping
+ShippingZones = Zones de livraison
+ShippingMethods = Methodes de livraison
+ShippingRates = Tarifs de livraison
+AddZone = Ajouter une zone
+AddMethod = Ajouter une methode
+National = National
+International = International
+
+# Taxes
+TaxRules = Regles de taxe
+TaxRates = Taux de taxe
+AddTax = Ajouter une taxe
+
+# Products
+FeaturedProducts = Produits en vedette
+RelatedProducts = Produits lies
+ProductVariants = Variantes
+ProductOptions = Options
+WholesalePrices = Prix de gros
+Reviews = Avis clients
+AddReview = Ajouter un avis
+
+# Cart
+ShoppingCart = Panier
+AddToCart = Ajouter au panier
+RemoveFromCart = Retirer du panier
+UpdateCart = Mettre a jour
+Subtotal = Sous-total
+Total = Total
+EmptyCart = Votre panier est vide
+ContinueShopping = Continuer les achats
+ProceedToCheckout = Passer la commande
+
+# Checkout
+Checkout = Commande
+Step1Info = Vos informations
+Step2Address = Adresse de livraison
+Step3Payment = Paiement
+ShippingAddress = Adresse de livraison
+BillingAddress = Adresse de facturation
+SameAsShipping = Identique a l'adresse de livraison
+PlaceOrder = Confirmer la commande
+OrderConfirmation = Confirmation de commande
+OrderThankYou = Merci pour votre commande !
+
+# Coupons
+CouponCode = Code promo
+ApplyCoupon = Appliquer
+CouponApplied = Code promo applique
+CouponInvalid = Code promo invalide
+CouponExpired = Code promo expire
+Coupons = Coupons
+AddCoupon = Ajouter un coupon
+CouponType = Type de reduction
+CouponValue = Valeur
+CouponMinOrder = Commande minimum
+CouponMaxUses = Utilisations max
+CouponPerCustomer = Par client
+
+# Gift cards
+GiftCards = Cartes cadeaux
+GiftCardCode = Code carte cadeau
+GiftCardBalance = Solde
+ApplyGiftCard = Appliquer
+AddGiftCard = Creer une carte cadeau
+
+# Customer
+MyAccount = Mon compte
+Login = Connexion
+Register = Inscription
+Logout = Deconnexion
+Email = Email
+Password = Mot de passe
+ConfirmPassword = Confirmer le mot de passe
+ForgotPassword = Mot de passe oublie ?
+RememberMe = Se souvenir de moi
+FirstName = Prenom
+LastName = Nom
+Phone = Telephone
+Address = Adresse
+City = Ville
+ZipCode = Code postal
+Country = Pays
+State = Region
+MyOrders = Mes commandes
+MyWishlist = Ma liste de souhaits
+MyProfile = Mon profil
+
+# Blog & CMS
+Blog = Blog
+News = Actualites
+ReadMore = Lire la suite
+PostComment = Poster un commentaire
+Pages = Pages
+Testimonials = Temoignages
+Banners = Bannieres
+
+# Status
+Enabled = Active
+Disabled = Desactive
+Pending = En attente
+Approved = Approuve
+Published = Publie
+Draft = Brouillon
+
+# Dashboard
+Dashboard = Tableau de bord
+TotalOrders = Commandes totales
+TotalRevenue = Chiffre d'affaires
+TotalCustomers = Clients
+AbandonedCarts = Paniers abandonnes
+RecentOrders = Commandes recentes
+ViewShop = Voir la boutique
+
+# Search
+Search = Rechercher
+SearchResults = Resultats de recherche
+NoResults = Aucun resultat trouve
+InstantSearch = Recherche rapide
+
+# Misc
+ViewAll = Voir tout
+LoadMore = Charger plus
+Categories = Categories
+Brands = Marques
+NewArrivals = Nouveautes
+BestSellers = Meilleures ventes
+MostViewed = Les plus vus
+SendToFriend = Envoyer a un ami
+QuickView = Apercu rapide
+RecentlyViewed = Recemment consultes
+Newsletter = Newsletter
+Subscribe = S'abonner
+SubscribeSuccess = Inscription reussie !
