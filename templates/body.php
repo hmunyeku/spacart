@@ -8,7 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link rel="shortcut icon" href="/favicon.png" type="image/vnd.microsoft.icon" />
 <title>{$page_title}</title>
-<link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style type="text/css" media="all">
 <?php
 include SITE_ROOT.'/includes/css.php';

@@ -47,7 +47,7 @@ include SITE_ROOT . '/includes/image.php';
  </div>
  <div class="res-buttons">
 {if $v['avail'] > 0}
-<button id="pid{$v['productid']}">{lng[Add to cart]}<span><svg><use xlink:href="/images/sprite.svg#cart"></use></svg></span></button>
+<button id="pid{$v['productid']}" class="cart-icon-btn" title="{lng[Add to cart]}"><svg><use xlink:href="/images/sprite.svg#cart"></use></svg></button>
 {else}
 <div class="out-of-stock">
 Rupture de stock

@@ -4,7 +4,7 @@
    No framework dependency - pure custom CSS
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 /* =============================================
    CSS VARIABLES / THEME
@@ -31,7 +31,7 @@
     --radius-md: 10px;
     --radius-lg: 25px;
     --radius-btn: 100px;
-    --font-family: 'Open Sans', sans-serif, Arial, Verdana;
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-size: 14px;
     --transition: 0.3s ease;
     --container-width: 1380px;
@@ -5410,28 +5410,39 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-
     outline-offset: 1px;
 }
 
-/* FIX M6: Product card Add-to-Cart button - visible background */
-.res-buttons button,
-.res-buttons .button,
-.res-item .add-to-cart {
-    background: var(--theme-color);
-    color: #fff;
-    padding: 8px 18px;
-    border-radius: 100px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
+/* Product card Add-to-Cart: icon-only round button */
+.cart-icon-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #1a1a1a !important;
+    color: #fff !important;
     border: none;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
     transition: all 0.3s ease;
-    text-transform: uppercase;
+    position: relative;
 }
-.res-buttons button:hover,
-.res-buttons .button:hover,
-.res-item .add-to-cart:hover {
-    background: var(--theme-color-2);
-    transform: translateY(-1px);
-    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+.cart-icon-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: #fff;
+    stroke: #fff;
+}
+.cart-icon-btn:hover {
+    background: var(--theme-color) !important;
+    transform: scale(1.12);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+.cart-icon-btn:active {
+    transform: scale(0.95);
+}
+.res-buttons {
+    text-align: center;
+    padding: 8px 0;
 }
 
 /* FIX M2: Product name - 2-line clamp instead of 1 */
@@ -5631,4 +5642,114 @@ html {
 /* Better link transitions everywhere */
 a {
     transition: color 0.2s ease;
+}
+
+
+/* =============================================
+   IMPROVED TYPOGRAPHY (2026-02-16)
+   ============================================= */
+
+/* Override legacy arial font */
+body, * {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+code, pre, .monospace {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+}
+
+/* Better text hierarchy */
+body {
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: #333;
+    letter-spacing: -0.01em;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.3;
+}
+h3 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+h4 {
+    font-size: 14px;
+    font-weight: 600;
+}
+p {
+    line-height: 1.65;
+    color: #444;
+}
+small {
+    font-size: 12px;
+    color: #888;
+    letter-spacing: 0;
+}
+
+/* Product card text improvements */
+.res-name a {
+    font-weight: 500;
+    font-size: 13.5px;
+    color: #333;
+    line-height: 1.35;
+}
+.res-name a:hover {
+    color: var(--theme-color);
+}
+.res-price {
+    font-weight: 700;
+    font-size: 16px;
+    color: #1a1a1a;
+    letter-spacing: -0.02em;
+}
+.res-price .old-price,
+.res-price del,
+.res-price s {
+    font-weight: 400;
+    font-size: 12px;
+    color: #aaa;
+}
+
+/* Menu text */
+.menu a {
+    font-weight: 500;
+    font-size: 13.5px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+/* Button text */
+button, .button, input[type="submit"] {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+/* Footer text */
+.foot a {
+    font-size: 13px;
+    font-weight: 400;
+}
+.foot li:first-child {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+}
+
+/* Input/form text */
+input, select, textarea {
+    font-size: 14px;
+    color: #333;
+}
+input::placeholder, textarea::placeholder {
+    color: #aaa;
+    font-weight: 400;
 }
