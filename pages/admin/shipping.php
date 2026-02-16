@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         // Link to Dolibarr shipment mode if code provided
         if (!empty($add['code'])) {
-            $dol_mode_id = $db->field("SELECT rowid FROM llx_c_shipment_mode WHERE code='".addslashes($add['code'])."' AND active=1 LIMIT 1");
+            $dol_mode_id = $db->field("SELECT rowid FROM llx_c_shipment_mode WHERE code='".addslashes($add['code'])."' AND active=1");
             if ($dol_mode_id)
                 $insert_data['fk_shipment_mode'] = (int)$dol_mode_id;
         }

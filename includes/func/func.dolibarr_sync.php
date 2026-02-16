@@ -284,7 +284,7 @@ function spacart_get_or_create_societe($order) {
         if ($fk_soc) return intval($fk_soc);
     }
 
-    $soc_id = $db->field("SELECT rowid FROM llx_societe WHERE email='$email' AND entity=1 LIMIT 1");
+    $soc_id = $db->field("SELECT rowid FROM llx_societe WHERE email='$email' AND entity=1");
     if ($soc_id) {
         if (!empty($order['userid'])) {
             $db->query("UPDATE users SET fk_soc = " . intval($soc_id) . " WHERE id = '" . addslashes($order['userid']) . "'");
@@ -292,7 +292,7 @@ function spacart_get_or_create_societe($order) {
         return intval($soc_id);
     }
 
-    $soc_id = $db->field("SELECT fk_soc FROM llx_socpeople WHERE email='$email' AND fk_soc > 0 LIMIT 1");
+    $soc_id = $db->field("SELECT fk_soc FROM llx_socpeople WHERE email='$email' AND fk_soc > 0");
     if ($soc_id) {
         if (!empty($order['userid'])) {
             $db->query("UPDATE users SET fk_soc = " . intval($soc_id) . " WHERE id = '" . addslashes($order['userid']) . "'");
@@ -486,7 +486,7 @@ function spacart_record_payment($orderid, $facture_id) {
     $orderid = intval($orderid);
     $facture_id = intval($facture_id);
 
-    $existing_payment = $db->field("SELECT pf.fk_paiement FROM llx_paiement_facture pf WHERE pf.fk_facture = $facture_id LIMIT 1");
+    $existing_payment = $db->field("SELECT pf.fk_paiement FROM llx_paiement_facture pf WHERE pf.fk_facture = $facture_id");
     if ($existing_payment) {
         spacart_sync_log($orderid, 'payment', 'success', 'existing-pmt-' . $existing_payment);
         return true;
@@ -509,9 +509,9 @@ function spacart_record_payment($orderid, $facture_id) {
     $now = date('Y-m-d H:i:s');
     $date_paiement = date('Y-m-d', $order['date']);
 
-    $paiement_type_id = $db->field("SELECT id FROM llx_c_paiement WHERE code = '" . addslashes($payment_map['code']) . "' AND active = 1 LIMIT 1");
+    $paiement_type_id = $db->field("SELECT id FROM llx_c_paiement WHERE code = '" . addslashes($payment_map['code']) . "' AND active = 1");
     if (!$paiement_type_id) {
-        $paiement_type_id = $db->field("SELECT id FROM llx_c_paiement WHERE code = 'CB' AND active = 1 LIMIT 1");
+        $paiement_type_id = $db->field("SELECT id FROM llx_c_paiement WHERE code = 'CB' AND active = 1");
     }
 
     $pay_num = 'SPACART-PAY-' . $orderid;
@@ -702,7 +702,7 @@ function spacart_sync_customer($user_data) {
         return array('soc_id' => intval($existing['fk_soc']), 'contact_id' => intval($existing['fk_socpeople']));
     }
 
-    $mode = $db->field("SELECT value FROM llx_const WHERE name = 'SPACART_CUSTOMER_MODE' AND entity IN (0,1) LIMIT 1");
+    $mode = $db->field("SELECT value FROM llx_const WHERE name = 'SPACART_CUSTOMER_MODE' AND entity IN (0,1)");
     if (!$mode) $mode = 'individual';
 
     $email     = addslashes($user_data['email']);
@@ -716,14 +716,14 @@ function spacart_sync_customer($user_data) {
 
     if ($mode === 'generic') {
         // ---- GENERIC MODE: create contact under the generic tiers ----
-        $generic_soc_id = $db->field("SELECT value FROM llx_const WHERE name = 'SPACART_GENERIC_CUSTOMER_ID' AND entity IN (0,1) LIMIT 1");
+        $generic_soc_id = $db->field("SELECT value FROM llx_const WHERE name = 'SPACART_GENERIC_CUSTOMER_ID' AND entity IN (0,1)");
         if (!$generic_soc_id) {
             $generic_soc_id = spacart_create_generic_customer();
         }
         $generic_soc_id = intval($generic_soc_id);
 
         // Check if contact already exists by email
-        $contact_id = $db->field("SELECT rowid FROM llx_socpeople WHERE email = '$email' AND fk_soc = $generic_soc_id LIMIT 1");
+        $contact_id = $db->field("SELECT rowid FROM llx_socpeople WHERE email = '$email' AND fk_soc = $generic_soc_id");
 
         if (!$contact_id) {
             $db->query("INSERT INTO llx_socpeople (entity, fk_soc, lastname, firstname, email, phone_mobile, datec, statut, ref_ext)
@@ -737,10 +737,10 @@ function spacart_sync_customer($user_data) {
 
     } else {
         // ---- INDIVIDUAL MODE: create a thirdparty per customer ----
-        $soc_id = $db->field("SELECT rowid FROM llx_societe WHERE email = '$email' AND entity = 1 LIMIT 1");
+        $soc_id = $db->field("SELECT rowid FROM llx_societe WHERE email = '$email' AND entity = 1");
 
         if (!$soc_id) {
-            $soc_id = $db->field("SELECT rowid FROM llx_societe WHERE ref_ext = 'SPACART-USER-$uid' AND entity = 1 LIMIT 1");
+            $soc_id = $db->field("SELECT rowid FROM llx_societe WHERE ref_ext = 'SPACART-USER-$uid' AND entity = 1");
         }
 
         if (!$soc_id) {
@@ -775,7 +775,7 @@ function spacart_sync_customer($user_data) {
 function spacart_create_generic_customer() {
     global $db;
 
-    $soc_id = $db->field("SELECT rowid FROM llx_societe WHERE ref_ext = 'SPACART-GENERIC' AND entity = 1 LIMIT 1");
+    $soc_id = $db->field("SELECT rowid FROM llx_societe WHERE ref_ext = 'SPACART-GENERIC' AND entity = 1");
     if ($soc_id) {
         $db->query("INSERT INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_GENERIC_CUSTOMER_ID', '$soc_id', 'chaine', 1, 0)
                      ON DUPLICATE KEY UPDATE value = '$soc_id'");
@@ -809,7 +809,7 @@ function spacart_create_generic_customer() {
 function spacart_tag_ecommerce_customer($soc_id) {
     global $db;
 
-    $cat_id = $db->field("SELECT rowid FROM llx_categorie WHERE label = 'E-commerce SpaCart' AND type = 2 AND entity = 1 LIMIT 1");
+    $cat_id = $db->field("SELECT rowid FROM llx_categorie WHERE label = 'E-commerce SpaCart' AND type = 2 AND entity = 1");
     if (!$cat_id) {
         $db->query("INSERT INTO llx_categorie (entity, label, type, description, color, visible, date_creation)
                     VALUES (1, 'E-commerce SpaCart', 2, 'Clients provenant du site e-commerce SpaCart', '#4CAF50', 1, NOW())");

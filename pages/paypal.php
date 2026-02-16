@@ -33,9 +33,9 @@ $paypal_receiver = $payment_method['param1'];
 $_demo_emails = array('xcart@ya.ru', 'test@example.com', '');
 if (in_array($paypal_receiver, $_demo_emails)) {
 	// Try Dolibarr PAYPAL_BUSINESS constant
-	$_dol_paypal_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_BUSINESS' AND value != '' AND entity IN (0,1) LIMIT 1");
+	$_dol_paypal_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_BUSINESS' AND value != '' AND entity IN (0,1)");
 	if (empty($_dol_paypal_email)) {
-		$_dol_paypal_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_USER' AND value != '' AND entity IN (0,1) LIMIT 1");
+		$_dol_paypal_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_USER' AND value != '' AND entity IN (0,1)");
 	}
 	if (!empty($_dol_paypal_email)) {
 		$paypal_receiver = $_dol_paypal_email;

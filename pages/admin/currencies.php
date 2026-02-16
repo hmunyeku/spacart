@@ -8,11 +8,11 @@
 $entity = 1;
 
 // Get the shop base currency from config
-$base_row = $db->row("SELECT value FROM llx_const WHERE name='SPACART_CURRENCY' AND entity IN (0,".$entity.") ORDER BY entity DESC LIMIT 1");
+$base_row = $db->row("SELECT value FROM llx_const WHERE name='SPACART_CURRENCY' AND entity IN (0,".$entity.") ORDER BY entity DESC");
 $base_currency = !empty($base_row['value']) ? $base_row['value'] : 'EUR';
 
 // Get base currency's Dolibarr rate (rate vs MAIN_MONNAIE)
-$base_rate_row = $db->row("SELECT r.rate FROM llx_multicurrency m JOIN llx_multicurrency_rate r ON r.fk_multicurrency = m.rowid WHERE m.code='".$db->mysqli->real_escape_string($base_currency)."' AND m.entity=".$entity." LIMIT 1");
+$base_rate_row = $db->row("SELECT r.rate FROM llx_multicurrency m JOIN llx_multicurrency_rate r ON r.fk_multicurrency = m.rowid WHERE m.code='".$db->mysqli->real_escape_string($base_currency)."' AND m.entity=".$entity."");
 $base_doli_rate = $base_rate_row ? floatval($base_rate_row['rate']) : 1;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {

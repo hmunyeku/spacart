@@ -381,12 +381,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			// ---- Dolibarr bridge: try Dolibarr Stripe keys if SpaCart has test/empty keys ----
 			$_is_test = empty($stripe_skey) || strpos($stripe_skey, 'sk_test_') === 0;
 			if ($_is_test) {
-				$_dol_live = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_LIVE' AND value='1' AND entity IN (0,1) LIMIT 1");
+				$_dol_live = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_LIVE' AND value='1' AND entity IN (0,1)");
 				if ($_dol_live) {
-					$_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
-					if (empty($_dol_sk)) $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+					$_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY_LIVE' AND value != '' AND entity IN (0,1)");
+					if (empty($_dol_sk)) $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_KEY_LIVE' AND value != '' AND entity IN (0,1)");
 				} else {
-					$_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY' AND value != '' AND entity IN (0,1) LIMIT 1");
+					$_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY' AND value != '' AND entity IN (0,1)");
 				}
 				if (!empty($_dol_sk)) $stripe_skey = $_dol_sk;
 				unset($_dol_live, $_dol_sk, $_is_test);
@@ -417,8 +417,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 			// ---- Dolibarr bridge: if SpaCart has demo PayPal email, try Dolibarr config ----
 			$_demo_emails = array('xcart@ya.ru', 'test@example.com', '');
 			if (in_array($paypal_email, $_demo_emails)) {
-				$_dol_pp = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_BUSINESS' AND value != '' AND entity IN (0,1) LIMIT 1");
-				if (empty($_dol_pp)) $_dol_pp = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_USER' AND value != '' AND entity IN (0,1) LIMIT 1");
+				$_dol_pp = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_BUSINESS' AND value != '' AND entity IN (0,1)");
+				if (empty($_dol_pp)) $_dol_pp = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_USER' AND value != '' AND entity IN (0,1)");
 				if (!empty($_dol_pp)) $paypal_email = $_dol_pp;
 				unset($_dol_pp);
 			}

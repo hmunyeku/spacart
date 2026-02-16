@@ -313,18 +313,18 @@ $_sc_stripe = $db->row("SELECT param1, param2, live FROM payment_methods WHERE p
 if ($_sc_stripe) {
     $_stripe_is_test = empty($_sc_stripe['param1']) || strpos($_sc_stripe['param1'], 'sk_test_') === 0;
     if ($_stripe_is_test) {
-        $_dol_live = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_LIVE' AND value='1' AND entity IN (0,1) LIMIT 1");
+        $_dol_live = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_LIVE' AND value='1' AND entity IN (0,1)");
         if ($_dol_live) {
-            $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
-            if (empty($_dol_sk)) $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
-            $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_PUBLISHABLE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
-            if (empty($_dol_pk)) $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_PUBLISHABLE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+            $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY_LIVE' AND value != '' AND entity IN (0,1)");
+            if (empty($_dol_sk)) $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_KEY_LIVE' AND value != '' AND entity IN (0,1)");
+            $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_PUBLISHABLE_KEY_LIVE' AND value != '' AND entity IN (0,1)");
+            if (empty($_dol_pk)) $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_PUBLISHABLE_KEY_LIVE' AND value != '' AND entity IN (0,1)");
             if (!empty($_dol_sk)) {
                 $db->query("UPDATE payment_methods SET param1='" . addslashes($_dol_sk) . "'" . (!empty($_dol_pk) ? ", param2='" . addslashes($_dol_pk) . "'" : "") . ", live=1 WHERE paymentid=7");
             }
         } else {
-            $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY' AND value != '' AND entity IN (0,1) LIMIT 1");
-            $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_PUBLISHABLE_KEY' AND value != '' AND entity IN (0,1) LIMIT 1");
+            $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY' AND value != '' AND entity IN (0,1)");
+            $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_PUBLISHABLE_KEY' AND value != '' AND entity IN (0,1)");
             if (!empty($_dol_sk)) {
                 $db->query("UPDATE payment_methods SET param1='" . addslashes($_dol_sk) . "'" . (!empty($_dol_pk) ? ", param2='" . addslashes($_dol_pk) . "'" : "") . ", live=0 WHERE paymentid=7");
             }
@@ -339,12 +339,12 @@ $_sc_paypal = $db->row("SELECT param1, live FROM payment_methods WHERE paymentid
 if ($_sc_paypal) {
     $_pp_demo = array('xcart@ya.ru', 'test@example.com', '');
     if (in_array($_sc_paypal['param1'], $_pp_demo)) {
-        $_dol_pp_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_BUSINESS' AND value != '' AND entity IN (0,1) LIMIT 1");
+        $_dol_pp_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_BUSINESS' AND value != '' AND entity IN (0,1)");
         if (empty($_dol_pp_email)) {
-            $_dol_pp_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_USER' AND value != '' AND entity IN (0,1) LIMIT 1");
+            $_dol_pp_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_USER' AND value != '' AND entity IN (0,1)");
         }
         if (!empty($_dol_pp_email)) {
-            $_pp_sandbox = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_SANDBOX' AND entity IN (0,1) LIMIT 1");
+            $_pp_sandbox = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_SANDBOX' AND entity IN (0,1)");
             $_pp_live = ($_pp_sandbox === '0' || $_pp_sandbox === '') ? 1 : 0;
             $db->query("UPDATE payment_methods SET param1='" . addslashes($_dol_pp_email) . "', live=" . $_pp_live . " WHERE paymentid=8");
         }
@@ -385,7 +385,7 @@ if ($_need_fallback) {
 unset($_dol_fallback_map, $_need_fallback, $_fb_rows, $_fb, $_fb_const, $_fb_target, $_cat, $_key);
 # ---- Dolibarr native config bridge (MAIN_*) ----
 # Bridge currency from MAIN_MONNAIE (overrides settings.php default)
-$_dol_monnaie = $db->field("SELECT value FROM llx_const WHERE name='MAIN_MONNAIE' AND value != '' AND entity=1 LIMIT 1");
+$_dol_monnaie = $db->field("SELECT value FROM llx_const WHERE name='MAIN_MONNAIE' AND value != '' AND entity=1");
 if (!empty($_dol_monnaie)) {
     $payment_currency = $_dol_monnaie;
     $template['payment_currency'] = $payment_currency;
