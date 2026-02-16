@@ -378,6 +378,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 		if ($paymentid == 7) {
 			require_once(SITE_ROOT . '/stripe/init.php');
 			$stripe_skey = $db->field("SELECT param1 FROM payment_methods WHERE paymentid=7");
+			// ---- Dolibarr bridge: try Dolibarr Stripe keys if SpaCart has test/empty keys ----
+			$_is_test = empty($stripe_skey) || strpos($stripe_skey, 'sk_test_') === 0;
+			if ($_is_test) {
+				$_dol_live = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_LIVE' AND value='1' AND entity IN (0,1) LIMIT 1");
+				if ($_dol_live) {
+					$_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+					if (empty($_dol_sk)) $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+				} else {
+					$_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY' AND value != '' AND entity IN (0,1) LIMIT 1");
+				}
+				if (!empty($_dol_sk)) $stripe_skey = $_dol_sk;
+				unset($_dol_live, $_dol_sk, $_is_test);
+			}
+			// ---- End Dolibarr bridge ----
 			\Stripe\Stripe::setApiKey($stripe_skey);
 			$items = array();
 				$items[] = array(
@@ -400,6 +414,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 		} elseif ($paymentid == 8) {
 			$payment_method = $db->row("SELECT * FROM payment_methods WHERE paymentid=8");
 			$paypal_email = $payment_method['param1'];
+			// ---- Dolibarr bridge: if SpaCart has demo PayPal email, try Dolibarr config ----
+			$_demo_emails = array('xcart@ya.ru', 'test@example.com', '');
+			if (in_array($paypal_email, $_demo_emails)) {
+				$_dol_pp = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_BUSINESS' AND value != '' AND entity IN (0,1) LIMIT 1");
+				if (empty($_dol_pp)) $_dol_pp = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_USER' AND value != '' AND entity IN (0,1) LIMIT 1");
+				if (!empty($_dol_pp)) $paypal_email = $_dol_pp;
+				unset($_dol_pp);
+			}
+			unset($_demo_emails);
+			// ---- End Dolibarr bridge ----
 			if ($payment_method['live'])
 				$url = 'https://www.paypal.com/cgi-bin/webscr';
 			else

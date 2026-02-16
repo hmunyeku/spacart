@@ -1,5 +1,6 @@
 <div class="responsive-columns products"{if $tag_id} id="{$tag_id}"{/if}>
 {foreach $products as $v}
+{if !is_array($v)}{continue}{/if}
 <div class="res-item">
 <div class="res-zoom">
 {*

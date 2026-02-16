@@ -13,6 +13,10 @@ if ($_GET['popup']) {
 }
 
 if ($_POST['mode'] == 'add_review') {
+	if (!spacart_csrf_verify()) {
+		http_response_code(403);
+		exit('Invalid CSRF token');
+	}
 	extract($_POST, EXTR_SKIP);
 
 	if (!$name || !$message) {
@@ -68,6 +72,10 @@ if ($_POST['mode'] == 'add_review') {
 }
 
 if ($_POST['mode'] == 'send_to_friend') {
+	if (!spacart_csrf_verify()) {
+		http_response_code(403);
+		exit('Invalid CSRF token');
+	}
 	extract($_POST, EXTR_SKIP);
 	if (!$_POST['is_msg'])
 		$is_msg = '';

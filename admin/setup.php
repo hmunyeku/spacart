@@ -462,26 +462,51 @@ print '<br>';
 print '<table class="noborder centpercent">';
 print '<tr class="liste_titre"><td colspan="2">Moyens de paiement</td></tr>';
 
-// Stripe status
+// Stripe status + key bridge info
 $stripeEnabled = isModEnabled('stripe');
 print '<tr class="oddeven"><td>Stripe</td><td>';
 if ($stripeEnabled) {
 	$stripeLive = getDolGlobalString('STRIPE_LIVE');
 	print '<span class="badge badge-status4">Actif</span> ('.($stripeLive ? 'Production' : 'Test').')';
 	print ' - <a href="'.DOL_URL_ROOT.'/stripe/admin/stripe.php">Configurer</a>';
+	// Show key bridge status
+	$_sc_stripe_sk = $db->query("SELECT param1 FROM ".MAIN_DB_PREFIX."payment_methods WHERE paymentid=7");
+	$_sc_stripe_row = $db->fetch_object($_sc_stripe_sk);
+	$_sc_skey = $_sc_stripe_row ? $_sc_stripe_row->param1 : '';
+	$_is_test_key = empty($_sc_skey) || strpos($_sc_skey, 'sk_test_') === 0;
+	if ($_is_test_key) {
+		print '<br><small style="color:#e67e22;">&#9888; SpaCart utilise des cl&eacute;s de test. Si des cl&eacute;s Dolibarr sont configur&eacute;es, elles seront utilis&eacute;es automatiquement.</small>';
+	} else {
+		print '<br><small style="color:#27ae60;">&#10004; SpaCart utilise ses propres cl&eacute;s Stripe (live).</small>';
+	}
 } else {
 	print '<span class="badge badge-status8">Inactif</span>';
 	print ' - <a href="'.DOL_URL_ROOT.'/admin/modules.php?search_keyword=stripe">Activer le module</a>';
 }
 print '</td></tr>';
 
-// PayPal status
+// PayPal status + key bridge info
 $paypalEnabled = isModEnabled('paypal');
 print '<tr class="oddeven"><td>PayPal</td><td>';
 if ($paypalEnabled) {
 	$paypalSandbox = getDolGlobalString('PAYPAL_API_SANDBOX');
 	print '<span class="badge badge-status4">Actif</span> ('.($paypalSandbox ? 'Sandbox' : 'Production').')';
 	print ' - <a href="'.DOL_URL_ROOT.'/paypal/admin/paypal.php">Configurer</a>';
+	// Show key bridge status
+	$_sc_pp_sk = $db->query("SELECT param1 FROM ".MAIN_DB_PREFIX."payment_methods WHERE paymentid=8");
+	$_sc_pp_row = $db->fetch_object($_sc_pp_sk);
+	$_sc_pp_email = $_sc_pp_row ? $_sc_pp_row->param1 : '';
+	$_demo_emails = array('xcart@ya.ru', 'test@example.com', '');
+	if (in_array($_sc_pp_email, $_demo_emails)) {
+		$_dol_pp_biz = getDolGlobalString('PAYPAL_BUSINESS');
+		if (!empty($_dol_pp_biz)) {
+			print '<br><small style="color:#27ae60;">&#10004; Email de d&eacute;mo remplac&eacute; par le compte Dolibarr : <strong>'.dol_escape_htmltag($_dol_pp_biz).'</strong></small>';
+		} else {
+			print '<br><small style="color:#e67e22;">&#9888; Email PayPal SpaCart est "'.$_sc_pp_email.'" (d&eacute;mo). Configurez PAYPAL_BUSINESS dans Dolibarr.</small>';
+		}
+	} else {
+		print '<br><small style="color:#27ae60;">&#10004; SpaCart utilise son propre compte PayPal : <strong>'.dol_escape_htmltag($_sc_pp_email).'</strong></small>';
+	}
 } else {
 	print '<span class="badge badge-status8">Inactif</span>';
 	print ' - <a href="'.DOL_URL_ROOT.'/admin/modules.php?search_keyword=paypal">Activer le module</a>';

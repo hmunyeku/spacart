@@ -8,3 +8,7 @@ Disallow: /scripts/
 Disallow: /files/
 Disallow: /stripe/
 Allow: /
+
+# Sitemap
+Sitemap: https://erp.coexdis.com/custom/spacart/sitemap.xml
+

@@ -98,7 +98,7 @@ $is_image_magick = false;
 $image_magick_quality = 75;
 
 // Payment currency
-$payment_currency = 'EUR';
+$payment_currency = 'USD'; // Default: overridden by MAIN_MONNAIE from Dolibarr in boot.php
 
 // Default language
 $lng = 'fr';

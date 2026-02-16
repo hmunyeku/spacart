@@ -43,3 +43,23 @@ stripe/
 bt/
 ckeditor/
 materialize/
+
+# Runtime directories
+var/
+vendor/
+
+# Temp/old files
+*.php-
+*.php-old
+templates/invoice/body.php-
+templates/invoice/body.php-old
+
+# Config with secrets
+includes/janrain.key
+includes/tickets_smtp.php
+
+# Generated
+scripts/generate_sitemap.php
+
+# Images (from Dolibarr)
+images/

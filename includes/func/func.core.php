@@ -50,23 +50,13 @@ function arrayMap($fn, $arr) {
 }
 
 function get_include_contents($filename) {
-	global $template, $login, $user, $lng, $current_location, $config, $design_mode, $_SESSION, $company_name, $company_slogan, $company_email, $_GET, $warehouse_enabled, $web_dir;
+	global $template, $login, $user, $lng, $current_location, $config, $design_mode, $_SESSION, $company_name, $company_slogan, $company_email, $_GET, $warehouse_enabled;
 	extract($_SESSION, EXTR_SKIP);
 	extract($template);
     if (is_file($filename)) {
         ob_start();
         include $filename;
-        $content = ob_get_clean();
-
-        // Reverse proxy URL rewriting: replace internal paths with public paths
-        if (defined('INTERNAL_WEB_DIR') && INTERNAL_WEB_DIR !== $web_dir) {
-            $content = str_replace(INTERNAL_WEB_DIR . '/', $web_dir . '/', $content);
-            // Also handle paths without trailing slash (e.g. href="/custom/spacart")
-            $content = str_replace(INTERNAL_WEB_DIR . '"', $web_dir . '"', $content);
-            $content = str_replace(INTERNAL_WEB_DIR . "'", $web_dir . "'", $content);
-        }
-
-        return $content;
+        return ob_get_clean();
     }
 
     return false;
@@ -235,10 +225,8 @@ function get_template_contents($filename, $force = false) {
 		}
 
 		# Rewrite absolute paths for Dolibarr module prefix
-		# Always use internal path for compiled cache (runtime rewriting handles proxy URLs)
-		$_compile_web_dir = defined('INTERNAL_WEB_DIR') ? INTERNAL_WEB_DIR : $web_dir;
-		if (!empty($_compile_web_dir) && $_compile_web_dir != '/') {
-			$_pfx = $_compile_web_dir . '/';
+		if (!empty($web_dir) && $web_dir != '/') {
+			$_pfx = $web_dir . '/';
 			$_patterns = array(
 				'href="/',  "href='/",
 				'src="/',   "src='/",
@@ -251,11 +239,11 @@ function get_template_contents($filename, $force = false) {
 			}
 			$content = str_replace($_patterns, $_replacements, $content);
 			// Fix double prefix
-			$content = str_replace($_compile_web_dir . $_compile_web_dir, $_compile_web_dir, $content);
+			$content = str_replace($web_dir . $web_dir, $web_dir, $content);
 			// Undo rewrite for protocol-relative URLs (//example.com)
 			$content = str_replace($_pfx . '/', '//', $content);
 			// Undo rewrite for external URLs
-			$content = str_replace($_compile_web_dir . '/http', '/http', $content);
+			$content = str_replace($web_dir . '/http', '/http', $content);
 		}
 
 		$content = str_replace("else", "else ", $content);
@@ -375,12 +363,12 @@ $mail->send();
 }
 catch (\Throwable $t)
 {
-    echo $t;
+    error_log('SpaCart mail error: ' . $t->getMessage());
    // Executed only in PHP 7, will not match in PHP 5
 }
 catch (\Exception $e)
 {
-    echo $e;
+    error_log('SpaCart mail error: ' . $e->getMessage());
    // Executed only in PHP 5, will not be reached in PHP 7
 }
 	return;

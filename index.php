@@ -270,6 +270,19 @@ if ($get['0'] == 'admin')
 	$main = get_template_contents('admin/body.php');
 else {
 	$template['stripe_pkey'] = $db->field("SELECT param2 FROM payment_methods WHERE paymentid=7");
+	// Dolibarr bridge: fallback to Dolibarr Stripe publishable key if SpaCart key is test/empty
+	$_is_test_pk = empty($template['stripe_pkey']) || strpos($template['stripe_pkey'], 'pk_test_') === 0;
+	if ($_is_test_pk) {
+		$_dol_live = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_LIVE' AND value='1' AND entity IN (0,1) LIMIT 1");
+		if ($_dol_live) {
+			$_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_PUBLISHABLE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+			if (empty($_dol_pk)) $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_PUBLISHABLE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+		} else {
+			$_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_PUBLISHABLE_KEY' AND value != '' AND entity IN (0,1) LIMIT 1");
+		}
+		if (!empty($_dol_pk)) $template['stripe_pkey'] = $_dol_pk;
+		unset($_dol_live, $_dol_pk, $_is_test_pk);
+	}
 	$main = get_template_contents('body.php');
 }
 

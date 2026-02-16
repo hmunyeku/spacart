@@ -2,6 +2,10 @@
 q_load('cart', 'product');
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+	if (!spacart_csrf_verify()) {
+		http_response_code(403);
+		exit('Invalid CSRF token');
+	}
 	extract($_POST, EXTR_SKIP);
 	if ($get['1'] == 'add_gc') {
 		if (!is_numeric($get['2']))

@@ -306,6 +306,54 @@ $template["autotranslate_source_lang"] = !empty($config["General"]["autotranslat
 $template["autotranslate_exclude"] = !empty($config["General"]["autotranslate_exclude"]) ? $config["General"]["autotranslate_exclude"] : ".notranslate, .price, .ef-price";
 unset($_spacart_consts, $_dol_map, $_dol_prefix, $_sc, $_cat, $_key);
 
+# ---- Dolibarr payment bridge: Stripe + PayPal keys ----
+# If SpaCart payment_methods has test/demo keys, try to read from Dolibarr's llx_const
+// Stripe: param1=secret key, param2=public key (paymentid=7)
+$_sc_stripe = $db->row("SELECT param1, param2, live FROM payment_methods WHERE paymentid=7");
+if ($_sc_stripe) {
+    $_stripe_is_test = empty($_sc_stripe['param1']) || strpos($_sc_stripe['param1'], 'sk_test_') === 0;
+    if ($_stripe_is_test) {
+        $_dol_live = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_LIVE' AND value='1' AND entity IN (0,1) LIMIT 1");
+        if ($_dol_live) {
+            $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+            if (empty($_dol_sk)) $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+            $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_PUBLISHABLE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+            if (empty($_dol_pk)) $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_PUBLISHABLE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+            if (!empty($_dol_sk)) {
+                $db->query("UPDATE payment_methods SET param1='" . addslashes($_dol_sk) . "'" . (!empty($_dol_pk) ? ", param2='" . addslashes($_dol_pk) . "'" : "") . ", live=1 WHERE paymentid=7");
+            }
+        } else {
+            $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY' AND value != '' AND entity IN (0,1) LIMIT 1");
+            $_dol_pk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_PUBLISHABLE_KEY' AND value != '' AND entity IN (0,1) LIMIT 1");
+            if (!empty($_dol_sk)) {
+                $db->query("UPDATE payment_methods SET param1='" . addslashes($_dol_sk) . "'" . (!empty($_dol_pk) ? ", param2='" . addslashes($_dol_pk) . "'" : "") . ", live=0 WHERE paymentid=7");
+            }
+        }
+    }
+    unset($_stripe_is_test, $_dol_live, $_dol_sk, $_dol_pk);
+}
+unset($_sc_stripe);
+
+// PayPal: param1=receiver email (paymentid=8)
+$_sc_paypal = $db->row("SELECT param1, live FROM payment_methods WHERE paymentid=8");
+if ($_sc_paypal) {
+    $_pp_demo = array('xcart@ya.ru', 'test@example.com', '');
+    if (in_array($_sc_paypal['param1'], $_pp_demo)) {
+        $_dol_pp_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_BUSINESS' AND value != '' AND entity IN (0,1) LIMIT 1");
+        if (empty($_dol_pp_email)) {
+            $_dol_pp_email = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_USER' AND value != '' AND entity IN (0,1) LIMIT 1");
+        }
+        if (!empty($_dol_pp_email)) {
+            $_pp_sandbox = $db->field("SELECT value FROM llx_const WHERE name='PAYPAL_API_SANDBOX' AND entity IN (0,1) LIMIT 1");
+            $_pp_live = ($_pp_sandbox === '0' || $_pp_sandbox === '') ? 1 : 0;
+            $db->query("UPDATE payment_methods SET param1='" . addslashes($_dol_pp_email) . "', live=" . $_pp_live . " WHERE paymentid=8");
+        }
+    }
+    unset($_pp_demo, $_dol_pp_email, $_pp_sandbox, $_pp_live);
+}
+unset($_sc_paypal);
+# ---- End Dolibarr payment bridge ----
+
 # ---- Dolibarr entity fallback for social links ----
 # If SPACART social links are still empty, try Dolibarr MAIN_INFO_SOCIETE_* constants
 $_dol_fallback_map = array(
@@ -321,20 +369,60 @@ foreach ($_dol_fallback_map as $_fb_const => $_fb_target) {
     }
 }
 if ($_need_fallback) {
-    $_fb_rows = $db->all("SELECT name, value FROM llx_const WHERE name IN (MAIN_INFO_SOCIETE_FACEBOOK_URL,MAIN_INFO_SOCIETE_LINKEDIN_URL,MAIN_INFO_SOCIETE_WHATSAPP_URL) AND value !=  AND entity = 1");
+    $_fb_rows = $db->all("SELECT name, value FROM llx_const WHERE name IN ('MAIN_INFO_SOCIETE_FACEBOOK_URL','MAIN_INFO_SOCIETE_LINKEDIN_URL','MAIN_INFO_SOCIETE_WHATSAPP_URL') AND value != '' AND entity = 1");
     if (!empty($_fb_rows)) {
         foreach ($_fb_rows as $_fb) {
-            if (isset($_dol_fallback_map[$_fb[name]])) {
-                $_cat = $_dol_fallback_map[$_fb[name]][0];
-                $_key = $_dol_fallback_map[$_fb[name]][1];
+            if (isset($_dol_fallback_map[$_fb['name']])) {
+                $_cat = $_dol_fallback_map[$_fb['name']][0];
+                $_key = $_dol_fallback_map[$_fb['name']][1];
                 if (empty($config[$_cat][$_key])) {
-                    $config[$_cat][$_key] = $_fb[value];
+                    $config[$_cat][$_key] = $_fb['value'];
                 }
             }
         }
     }
 }
 unset($_dol_fallback_map, $_need_fallback, $_fb_rows, $_fb, $_fb_const, $_fb_target, $_cat, $_key);
+# ---- Dolibarr native config bridge (MAIN_*) ----
+# Bridge currency from MAIN_MONNAIE (overrides settings.php default)
+$_dol_monnaie = $db->field("SELECT value FROM llx_const WHERE name='MAIN_MONNAIE' AND value != '' AND entity=1 LIMIT 1");
+if (!empty($_dol_monnaie)) {
+    $payment_currency = $_dol_monnaie;
+    $template['payment_currency'] = $payment_currency;
+    // Map currency code to symbol
+    $_currency_symbols = array('USD'=>'$','EUR'=>'€','GBP'=>'£','XAF'=>'FCFA','XOF'=>'FCFA','CDF'=>'FC','JPY'=>'¥','CHF'=>'CHF','CAD'=>'CA$','AUD'=>'A$','ZAR'=>'R','BRL'=>'R$','INR'=>'₹','CNY'=>'¥','RUB'=>'₽');
+    if (isset($_currency_symbols[$_dol_monnaie])) {
+        $config['General']['currency_symbol'] = $_currency_symbols[$_dol_monnaie];
+    }
+    unset($_currency_symbols);
+}
+unset($_dol_monnaie);
+
+# Bridge company info from MAIN_INFO_SOCIETE_* (fallback if SPACART_ config not set)
+$_dol_societe_map = array(
+    'MAIN_INFO_SOCIETE_NOM'     => array('Company', 'company_name'),
+    'MAIN_INFO_SOCIETE_MAIL'    => array('Company', 'company_mail_from'),
+    'MAIN_INFO_SOCIETE_TEL'     => array('Company', 'company_phone'),
+    'MAIN_INFO_SOCIETE_ADDRESS' => array('Company', 'location_address'),
+    'MAIN_INFO_SOCIETE_TOWN'    => array('Company', 'location_city'),
+    'MAIN_INFO_SOCIETE_ZIP'     => array('Company', 'location_zipcode'),
+);
+$_dol_soc_rows = $db->all("SELECT name, value FROM llx_const WHERE name LIKE 'MAIN_INFO_SOCIETE_%' AND value != '' AND entity=1");
+if (!empty($_dol_soc_rows)) {
+    foreach ($_dol_soc_rows as $_sr) {
+        if (isset($_dol_societe_map[$_sr['name']])) {
+            $_cat = $_dol_societe_map[$_sr['name']][0];
+            $_key = $_dol_societe_map[$_sr['name']][1];
+            if (empty($config[$_cat][$_key])) {
+                $config[$_cat][$_key] = $_sr['value'];
+            }
+        }
+    }
+    if (!empty($config['Company']['company_name'])) $company_name = $config['Company']['company_name'];
+    if (!empty($config['Company']['company_mail_from'])) $company_email = $config['Company']['company_mail_from'];
+}
+unset($_dol_societe_map, $_dol_soc_rows, $_sr, $_cat, $_key);
+
 # ---- End Dolibarr bridge ----
 $config['company_name'] = $config['Company']['company_name'];
 $config['company_url'] = $config['Company']['company_website'];

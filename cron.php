@@ -15,6 +15,19 @@ include 'includes/boot.php';
 q_load('order');
 require_once(SITE_ROOT . '/stripe/init.php');
 $stripe_skey = $db->field("SELECT param1 FROM payment_methods WHERE paymentid=7");
+// Dolibarr bridge: fallback to Dolibarr Stripe keys if SpaCart key is test/empty
+$_is_test = empty($stripe_skey) || strpos($stripe_skey, 'sk_test_') === 0;
+if ($_is_test) {
+	$_dol_live = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_LIVE' AND value='1' AND entity IN (0,1) LIMIT 1");
+	if ($_dol_live) {
+		$_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+		if (empty($_dol_sk)) $_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_KEY_LIVE' AND value != '' AND entity IN (0,1) LIMIT 1");
+	} else {
+		$_dol_sk = $db->field("SELECT value FROM llx_const WHERE name='STRIPE_TEST_SECRET_KEY' AND value != '' AND entity IN (0,1) LIMIT 1");
+	}
+	if (!empty($_dol_sk)) $stripe_skey = $_dol_sk;
+	unset($_dol_live, $_dol_sk, $_is_test);
+}
 \Stripe\Stripe::setApiKey($stripe_skey);
 $events = \Stripe\Event::all([
   'type' => 'checkout.session.completed',
