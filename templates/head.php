@@ -57,7 +57,7 @@
 {/if}
 <a class="parent-link ajax_link" href="{$current_location}/blog">{lng[Blog]}</a>
 <a class="parent-link ajax_link" href="{$current_location}/news">{lng[News]}</a>
-<a class="header-email ajax_link" class="parent-link" href="{if $config['Tickets']['use_tickets']}{$current_location}/support_desk{else}{$current_location}/help{/if}"><svg><use xlink:href="/images/sprite.svg#email"></use></svg>{*<img src="/images/icons/email.png" alt="{lng[Email us|escape]}" />*} {lng[Email us]}</a>
+<a class="header-email ajax_link parent-link" href="{if $config['Tickets']['use_tickets']}{$current_location}/support_desk{else}{$current_location}/help{/if}"><svg><use xlink:href="/images/sprite.svg#email"></use></svg>{*<img src="/images/icons/email.png" alt="{lng[Email us|escape]}" />*} {lng[Email us]}</a>
 <a class="parent-link ajax_link" href="{$current_location}/page/a-propos">{lng[About]}</a>
 
 <div class="top-line-brands">

@@ -224,7 +224,9 @@ button:hover, .btn:hover {
     transition: all 0.3s ease-in-out;
 }
 .res-item:hover {
-    border: 1px solid #fff;
+    border: 1px solid #eee;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    transform: translateY(-3px);
 }
 .responsive-columns .res-item:nth-child(5n) { margin-right: 0; }
 .responsive-columns .res-item:nth-child(5n) + .res-item { clear: left; }
@@ -4621,15 +4623,15 @@ body.scrolled #menu > li {
 body::-webkit-scrollbar,
 html::-webkit-scrollbar {
     background-color: var(--theme-color-2);
-    height: 20px;
-    width: 20px;
+    height: 8px;
+    width: 8px;
 }
 *::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb,
 html::-webkit-scrollbar-thumb {
     background: var(--theme-color);
     border-radius: 99em;
-    border: 6px solid var(--theme-color-2);
+    border: 2px solid var(--theme-color-2);
 }
 
 /* =============================================
@@ -4640,10 +4642,10 @@ h1, h2, h3, h4 {
     transition-duration: 0.3s;
 }
 h1:hover, h2:hover, h4:hover {
-    padding-left: 10px;
+    transform: translateX(8px);
 }
 h3:hover {
-    padding-left: 20px;
+    transform: translateX(12px);
 }
 .breadcrumbs,
 .bread_crumbs {
@@ -4652,7 +4654,7 @@ h3:hover {
 }
 .breadcrumbs:hover,
 .bread_crumbs:hover {
-    padding-left: 20px;
+    transform: translateX(8px);
 }
 /* Navigation/pagination scale on hover */
 .products-nav .second a,
@@ -4728,7 +4730,6 @@ h3:hover {
     margin-bottom: 5px;
     transition: 0.25s;
     top: 0;
-    max-width: 320px;
 }
 .group:hover {
     border: 2px solid var(--theme-color);
@@ -5392,4 +5393,242 @@ h3:hover {
     body {
         padding-top: 0;
     }
+}
+
+
+/* =============================================
+   VISUAL POLISH FIXES (2026-02-16)
+   ============================================= */
+
+/* FIX L1: Focus-visible styles for accessibility */
+*:focus-visible {
+    outline: 2px solid var(--theme-color);
+    outline-offset: 2px;
+}
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--theme-color);
+    outline-offset: 1px;
+}
+
+/* FIX M6: Product card Add-to-Cart button - visible background */
+.res-buttons button,
+.res-buttons .button,
+.res-item .add-to-cart {
+    background: var(--theme-color);
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+}
+.res-buttons button:hover,
+.res-buttons .button:hover,
+.res-item .add-to-cart:hover {
+    background: var(--theme-color-2);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+}
+
+/* FIX M2: Product name - 2-line clamp instead of 1 */
+.res-name {
+    height: auto !important;
+    max-height: 42px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal !important;
+    line-height: 1.4;
+}
+
+/* FIX M3: Product price alignment - center like name */
+.res-price {
+    text-align: center !important;
+}
+
+/* FIX H4: Subscribe bar proper layout */
+#subscribe {
+    display: flex;
+    gap: 0;
+    max-width: 420px;
+    height: 48px;
+    border: 0;
+    border-radius: 50px;
+    background: #fff;
+    overflow: hidden;
+    margin: 0 auto;
+}
+#subscribe input[type="text"],
+#subscribe input[type="email"],
+#sub-email {
+    padding: 10px 20px;
+    border: 0 !important;
+    font-size: 14px;
+    flex: 1;
+    color: #666;
+    border-radius: 50px 0 0 50px;
+    background: #fff;
+    min-width: 0;
+}
+#subscribe button {
+    border-radius: 0 50px 50px 0;
+    height: 48px;
+    padding: 0 25px;
+    background: var(--theme-color) !important;
+    color: #fff !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+#subscribe button:hover {
+    background: var(--theme-color-2) !important;
+}
+
+/* FIX H5: Footer columns with flexbox */
+.foot {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 30px 40px;
+    padding: 35px 30px;
+    max-width: 1380px;
+    margin: 0 auto;
+}
+.foot > ul {
+    flex: 1 1 180px;
+    min-width: 160px;
+    float: none !important;
+    margin: 0 !important;
+}
+.foot > ul > li:first-child {
+    font-size: 13px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: rgba(255,255,255,0.45);
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+.foot > ul > li > a {
+    padding: 4px 0;
+    display: block;
+    transition: padding-left 0.2s ease, color 0.2s ease;
+}
+.foot > ul > li > a:hover {
+    padding-left: 6px;
+    color: var(--theme-color) !important;
+}
+
+/* FIX M10: Footer payment method icons */
+.foot-pm-icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    margin: 15px 0;
+}
+.foot-pm-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: rgba(255,255,255,0.6);
+}
+.foot-pm-item svg {
+    opacity: 0.75;
+}
+.foot-pm-item span {
+    font-size: 11px;
+}
+
+/* FIX H3: Responsive min-width overrides */
+@media (max-width: 1100px) {
+    .page-container, .header, .foot, .foot-subscribe, .subheader table {
+        min-width: auto !important;
+        max-width: 100% !important;
+    }
+    .home-tabs, .product-tabs {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* FIX H9: Login table responsive */
+.login_table {
+    width: 100%;
+    max-width: 650px;
+}
+
+/* FIX M12: Breadcrumbs styling */
+.bread_crumbs,
+.breadcrumbs {
+    padding: 10px 0;
+    font-size: 13px;
+    color: #999;
+}
+.bread_crumbs a,
+.breadcrumbs a {
+    color: #777;
+    text-decoration: none;
+}
+.bread_crumbs a:hover,
+.breadcrumbs a:hover {
+    color: var(--theme-color);
+}
+
+/* FIX M7: Testimonial section flexbox */
+.testimonial {
+    display: flex;
+    align-items: flex-start;
+    gap: 30px;
+}
+.testimonial img {
+    flex-shrink: 0;
+    float: none !important;
+    margin: 0 !important;
+}
+.testimonial h2 {
+    margin-left: 0 !important;
+}
+@media (max-width: 768px) {
+    .testimonial {
+        flex-direction: column;
+        text-align: center;
+    }
+    .testimonial img {
+        margin: 0 auto !important;
+    }
+}
+
+/* Smooth font rendering */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Selection color */
+::selection {
+    background: var(--theme-color);
+    color: #fff;
+}
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Better link transitions everywhere */
+a {
+    transition: color 0.2s ease;
 }

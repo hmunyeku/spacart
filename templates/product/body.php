@@ -396,7 +396,7 @@ options[{$oid}] = [];
 {/if}
 
 <div class="add-review-form">
-<h3>Add your review</h3>
+<h3>Ajouter votre avis</h3>
 <br />
 <form method="POST">
 <input type="hidden" name="mode" value="add_review" />

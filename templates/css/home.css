@@ -60,7 +60,7 @@
 	padding: 0 0 0 40px;
 	margin: 40px -10px 0 -10px;
 	list-style: none;
-	width: 1586px;
+	width: 100%; max-width: 1586px;
 	height: 48px;
 	background: transparent;
 }

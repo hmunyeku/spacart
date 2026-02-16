@@ -50,7 +50,7 @@ include SITE_ROOT . '/includes/image.php';
 <button id="pid{$v['productid']}">{lng[Add to cart]}<span><svg><use xlink:href="/images/sprite.svg#cart"></use></svg></span></button>
 {else}
 <div class="out-of-stock">
-Out of stock
+Rupture de stock
 </div>
 {/if}
 {*

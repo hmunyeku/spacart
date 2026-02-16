@@ -14,9 +14,7 @@ body {
     background: #fff;
 	color: #2b2a29;
 }
-* {
-	font-family: 'Open Sans', sans-serif, Arial, verdana, tahoma, sans-serif !important;
-}
+/* * font-family !important removed - set on body only */
 .body-loading {
 	position: fixed;
 	top: 0;

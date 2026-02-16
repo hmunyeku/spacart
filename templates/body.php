@@ -407,7 +407,6 @@ include SITE_ROOT.'/theme.php';
 </script>
 {/if}
 
-<input type="hidden" id="csrf_token" value="{php echo spacart_csrf_token();}" /><script>$.ajaxSetup({beforeSend:function(x,s){if(s.type==="POST"&&s.data){var t=document.getElementById("csrf_token");if(t&&t.value){s.data+=(s.data?"&":"")+"csrf_token="+encodeURIComponent(t.value)}}}});.ajaxComplete(function(e,x){var t=x.getResponseHeader("X-CSRF-Token");if(t){var el=document.getElementById("csrf_token");if(el)el.value=t;var hf=document.querySelector("input[name=csrf_token]");if(hf)hf.value=t}});</script>
-<input type="hidden" id="csrf_token" value="{php echo spacart_csrf_token();}" />
+<input type="hidden" id="csrf_token" value="{php echo spacart_csrf_token();}" /><script>$.ajaxSetup({beforeSend:function(x,s){if(s.type==="POST"&&s.data){var t=document.getElementById("csrf_token");if(t&&t.value){s.data+=(s.data?"&":"")+"csrf_token="+encodeURIComponent(t.value)}}}});$(document).ajaxComplete(function(e,x){var t=x.getResponseHeader("X-CSRF-Token");if(t){var el=document.getElementById("csrf_token");if(el)el.value=t;var hf=document.querySelector("input[name=csrf_token]");if(hf)hf.value=t}});</script>
 </body>
 </html>
