@@ -1,91 +1,92 @@
 <?php
-/**
- * SpaCart - PayPal callback & IPN handler
- *
- * PayPal payments are processed through Dolibarr's native payment page:
- *   /public/payment/newpayment.php?source=order&ref=...
- *
- * The IPN (Instant Payment Notification) is handled by Dolibarr natively.
- * This file only provides a SpaCart-specific fallback webhook and callback pages.
- */
+if ($_SERVER['REQUEST_METHOD'] != 'POST')
+	exit;
 
-// IPN Webhook mode (fallback - prefer Dolibarr's native IPN handler)
-if (strpos($_SERVER['REQUEST_URI'], 'webhooks/paypal') !== false) {
-    $raw = file_get_contents('php://input');
-    parse_str($raw, $ipnData);
+$orderid = $get['1'];
+// STEP 1: read POST data
 
-    // Determine PayPal sandbox mode from Dolibarr config
-    $isSandbox = getDolGlobalString('PAYPAL_API_SANDBOX');
-    $verifyUrl = $isSandbox
-        ? 'https://ipnpb.sandbox.paypal.com/cgi-bin/webscr'
-        : 'https://ipnpb.paypal.com/cgi-bin/webscr';
+// Reading POSTed data directly from $_POST causes serialization issues with array data in the POST.
+// Instead, read raw POST data from the input stream.
+$raw_post_data = file_get_contents('php://input');
+$raw_post_array = explode('&', $raw_post_data);
+$myPost = array();
+foreach ($raw_post_array as $keyval) {
+	$keyval = explode ('=', $keyval);
+	if (count($keyval) == 2)
+		$myPost[$keyval[0]] = urldecode($keyval[1]);
+}
 
-    $verifyData = 'cmd=_notify-validate&'.$raw;
+// read the IPN message sent from PayPal and prepend 'cmd=_notify-validate'
+$req = 'cmd=_notify-validate';
+if (function_exists('get_magic_quotes_gpc')) {
+	$get_magic_quotes_exists = true;
+}
 
-    $ch = curl_init($verifyUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $verifyData);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-    $response = curl_exec($ch);
+foreach ($myPost as $key => $value) {
+	if ($get_magic_quotes_exists == true && get_magic_quotes_gpc() == 1) {
+		$value = urlencode(stripslashes($value));
+	} else {
+		$value = urlencode($value);
+	}
+
+	$req .= "&$key=$value";
+}
+
+
+// Step 2: POST IPN data back to PayPal to validate
+
+$payment_method = $db->row("SELECT * FROM payment_methods WHERE paymentid=8");
+if ($payment_method['live'])
+	$url = 'https://www.paypal.com/cgi-bin/webscr';
+else
+	$url = 'https://www.sandbox.paypal.com/cgi-bin/webscr';
+
+$ch = curl_init($url);
+curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, $req);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 1);
+curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+curl_setopt($ch, CURLOPT_FORBID_REUSE, 1);
+curl_setopt($ch, CURLOPT_HTTPHEADER, array('Connection: Close', 'User-Agent: OwOhHo'));
+
+// In wamp-like environments that do not come bundled with root authority certificates,
+// please download 'cacert.pem' from "http://curl.haxx.se/docs/caextract.html" and set
+// the directory path of the certificate as shown below:
+// curl_setopt($ch, CURLOPT_CAINFO, dirname(__FILE__) . '/cacert.pem');
+if (!($res = curl_exec($ch))) {
+	$fp = fopen(SITE_ROOT.'/var/log/paypal_ipn_error.log', 'w');
+	fputs($fp, date('m.d.Y h:i:s')."\n"."Got " . curl_error($ch) . " when processing IPN data\n\n");
+	fclose($fp);
     curl_close($ch);
-
-    if (strcmp($response, 'VERIFIED') === 0) {
-        $paymentStatus = $ipnData['payment_status'] ?? '';
-
-        // Extract order ref from tag field (format: spacart_CO1234-5678)
-        $tag = $ipnData['custom'] ?? ($ipnData['item_number'] ?? '');
-        $orderRef = str_replace('spacart_', '', $tag);
-
-        if ($paymentStatus === 'Completed' && !empty($orderRef)) {
-            require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
-
-            $commande = new Commande($db);
-            // Try fetching by ref first, then by ID
-            if (is_numeric($orderRef)) {
-                $commande->fetch((int) $orderRef);
-            } else {
-                $commande->fetch(0, $orderRef);
-            }
-
-            if ($commande->id > 0) {
-                $techUser = new User($db);
-                $techUser->fetch(getDolGlobalInt('SPACART_TECHNICAL_USER_ID', 1));
-
-                if ($commande->statut == Commande::STATUS_DRAFT) {
-                    $commande->valid($techUser);
-                }
-
-                $commande->note_private .= "\n[".date('Y-m-d H:i').'] PayPal payment confirmed: '
-                    .($ipnData['txn_id'] ?? '').' - '
-                    .($ipnData['mc_gross'] ?? '').' '
-                    .($ipnData['mc_currency'] ?? '');
-                $commande->update_note($commande->note_private, '_private');
-            }
-        }
-    }
-
-    http_response_code(200);
-    echo 'OK';
     exit;
 }
 
-// ===== Callback page (after PayPal redirect, displayed in SPA) =====
-if (!defined('SPACART_BOOT')) die('Access denied');
+$fp = fopen(SITE_ROOT.'/var/log/paypal_ipn.log', 'a+');
+fputs($fp, date('m.d.Y h:i:s')."\n"."Order #".$orderid.': '.$res."\n\n");
 
-$orderId = !empty($_GET['order_id']) ? (int) $_GET['order_id'] : (!empty($get[1]) ? (int) $get[1] : 0);
-$status = !empty($_GET['status']) ? $_GET['status'] : 'success';
+if ($res == 'VERIFIED') {
+	fputs($fp, "Order #".$orderid.". Status updated.\n\n");
+	
+	q_load('order');
+	$orderinfo = func_orderinfo($orderid);
+	$order = $orderinfo['order'];
+	if ($order['total'] != $myPost['mc_gross'])
+		exit;
 
-if ($status === 'cancel') {
-    $page_html = '<div class="center-align" style="padding:50px;"><i class="material-icons large" style="color:#ff9800;">info</i><h5>Paiement annulé</h5><p>Vous avez annulé le paiement PayPal.</p><a href="#/cart" class="btn spacart-spa-link">Retour au panier</a></div>';
-    $page_title = 'Paiement annulé';
-} elseif ($orderId) {
-    $page_html = '<div class="center-align" style="padding:50px;"><i class="material-icons large" style="color:#4caf50;">check_circle</i><h5>Paiement en cours de validation</h5><p>Votre paiement PayPal est en cours de vérification.</p><a href="#/invoice/'.$orderId.'" class="btn spacart-spa-link">Voir ma commande</a></div>';
-    $page_title = 'Paiement PayPal';
+	order_status($orderid, 2);
+	$subject = $company_name.': '.lng('Order').' #'.$orderid.' '.$order_statuses[2];
+	$orderinfo = func_orderinfo($orderid);
+	$template['order'] = $order = $orderinfo['order'];
+	$template['products'] = $orderinfo['products'];
+	$template['is_mail'] = 'Y';
+	$message = get_template_contents('invoice/body.php');
+	func_mail($order['firstname'].' '.$order['lastname'], $order['email'], $config['Company']['orders_department'], $subject, $message);
+	func_mail($config['Company']['company_name'], $config['Company']['orders_department'], $order['email'], $subject, $message);
 } else {
-    $page_html = '<div class="center-align" style="padding:50px;"><i class="material-icons large grey-text">payment</i><h5>PayPal</h5><a href="#/" class="btn spacart-spa-link">Retour à l\'accueil</a></div>';
-    $page_title = 'PayPal';
 }
-$breadcrumbs_html = '';
+
+fclose($fp);
+curl_close($ch);
+exit;

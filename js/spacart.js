@@ -1,6 +1,7 @@
 /**
  * SpaCart SPA Engine - Dolibarr E-Commerce Module
  * Single Page Application router, AJAX navigation, cart management
+ * Vanilla JS - No framework dependency
  */
 (function() {
     'use strict';
@@ -18,7 +19,10 @@
         cartTotal: config.cartTotal || 0,
         searchTimer: null,
         bannerTimer: null,
-        initialized: false
+        swiperInstance: null,
+        initialized: false,
+        sidebarOpen: false,
+        megaMenuTimeout: null
     };
 
     // =============================================
@@ -107,24 +111,52 @@
         showLoader: function() {
             var loader = document.getElementById('spacart-loader');
             if (loader) loader.style.display = 'flex';
+            var bar = document.getElementById('spacart-progress');
+            if (bar) bar.classList.add('active');
             SC.state.loading = true;
         },
 
         hideLoader: function() {
             var loader = document.getElementById('spacart-loader');
             if (loader) loader.style.display = 'none';
+            var bar = document.getElementById('spacart-progress');
+            if (bar) bar.classList.remove('active');
             SC.state.loading = false;
         },
 
         toast: function(message, type) {
             type = type || 'info';
-            var classes = 'spacart-toast rounded';
-            if (type === 'success') classes += ' success';
-            else if (type === 'error') classes += ' error';
+            var container = document.getElementById('spacart-toast-container');
+            if (!container) return;
 
-            if (typeof M !== 'undefined' && M.toast) {
-                M.toast({html: message, classes: classes, displayLength: 3000});
-            }
+            var toast = document.createElement('div');
+            toast.className = 'sc-toast' + (type === 'success' ? ' success' : type === 'error' ? ' error' : '');
+            toast.innerHTML = '<span>' + message + '</span><button class="sc-toast-close">&times;</button>';
+
+            container.appendChild(toast);
+
+            // Trigger animation
+            requestAnimationFrame(function() {
+                toast.classList.add('show');
+            });
+
+            // Close button
+            toast.querySelector('.sc-toast-close').addEventListener('click', function() {
+                SC.util.removeToast(toast);
+            });
+
+            // Auto-remove after 4 seconds
+            setTimeout(function() {
+                SC.util.removeToast(toast);
+            }, 4000);
+        },
+
+        removeToast: function(toast) {
+            if (!toast || !toast.parentNode) return;
+            toast.classList.add('removing');
+            setTimeout(function() {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 400);
         },
 
         scrollToTop: function() {
@@ -143,7 +175,7 @@
 
         getPath: function() {
             var hash = window.location.hash || '#/';
-            return hash.substring(1); // Remove #
+            return hash.substring(1);
         },
 
         parsePath: function(path) {
@@ -155,18 +187,16 @@
             };
         },
 
-        loadPage: function(path, pushState) {
+        loadPage: function(path) {
             if (SC.state.loading) return;
 
             var parsed = SC.router.parsePath(path);
 
-            // Build URL for AJAX request
             var url = config.baseUrl;
             if (path && path !== '/') {
                 url += path;
             }
 
-            // Add ajax flag
             url += (url.indexOf('?') > -1 ? '&' : '?') + 'ajax=1';
 
             SC.util.showLoader();
@@ -176,43 +206,32 @@
                 method: 'GET',
                 success: function(data) {
                     if (typeof data === 'object' && data.html !== undefined) {
-                        // Update content
                         var content = document.getElementById('spacart-content');
                         if (content) {
                             content.innerHTML = data.html;
                         }
 
-                        // Update title
                         if (data.title) {
                             document.title = data.title;
                             var titleEl = document.getElementById('spacart-page-title');
                             if (titleEl) titleEl.textContent = data.title;
                         }
 
-                        // Update breadcrumbs
                         if (data.breadcrumbs) {
                             var bcEl = document.getElementById('spacart-breadcrumbs');
                             if (bcEl) bcEl.innerHTML = data.breadcrumbs;
                         }
 
-                        // Update cart badge
                         if (data.cart_count !== undefined) {
                             SC.cart.updateBadge(data.cart_count, data.cart_total);
                         }
 
-                        // Track page
                         SC.state.currentPage = parsed.page;
 
-                        // Re-init Materialize components in new content
-                        SC.initMaterialize();
-
-                        // Bind new SPA links
+                        // Bind new SPA links and handlers
                         SC.bindSpaLinks(content);
-
-                        // Bind page-specific handlers
                         SC.bindPageHandlers(parsed.page);
 
-                        // Scroll to top
                         SC.util.scrollToTop();
 
                         // GA tracking
@@ -289,7 +308,6 @@
                     if (resp.success) {
                         SC.cart.updateBadge(resp.cart_count, resp.cart_total);
                         SC.cart.refreshMiniCart();
-                        // If on cart page, reload it
                         if (SC.state.currentPage === 'cart') {
                             SC.router.loadPage('/cart');
                         }
@@ -370,7 +388,13 @@
             SC.state.cartCount = parseInt(count) || 0;
             SC.state.cartTotal = parseFloat(total) || 0;
 
-            // Desktop badge
+            // All cart count badges
+            var badges = document.querySelectorAll('.spacart-cart-count');
+            for (var i = 0; i < badges.length; i++) {
+                badges[i].textContent = SC.state.cartCount;
+            }
+
+            // Desktop badge visibility
             var badge = document.getElementById('spacart-cart-badge');
             if (badge) {
                 badge.textContent = SC.state.cartCount;
@@ -381,21 +405,9 @@
             var mobileBadge = document.getElementById('spacart-cart-badge-mobile');
             if (mobileBadge) {
                 mobileBadge.textContent = SC.state.cartCount;
+                mobileBadge.style.display = SC.state.cartCount > 0 ? '' : 'none';
             }
 
-            // Mobile fab visibility
-            var mobileFab = document.getElementById('spacart-mobile-minicart');
-            if (mobileFab) {
-                mobileFab.style.display = SC.state.cartCount > 0 ? '' : 'none';
-            }
-
-            // Cart count in sidenav
-            var sidenavCounts = document.querySelectorAll('.spacart-cart-count');
-            for (var i = 0; i < sidenavCounts.length; i++) {
-                sidenavCounts[i].textContent = SC.state.cartCount;
-            }
-
-            // Update config
             config.cartCount = SC.state.cartCount;
             config.cartTotal = SC.state.cartTotal;
         },
@@ -421,31 +433,24 @@
     // =============================================
     SC.search = {
         init: function() {
-            var toggle = document.getElementById('spacart-search-toggle');
-            var box = document.getElementById('spacart-search-box');
-            var input = document.getElementById('spacart-search-input');
-            var results = document.getElementById('spacart-search-results');
+            // Desktop search
+            SC.search.bindSearchInput('spacart-search-input', 'spacart-search-results');
+            // Mobile search
+            SC.search.bindSearchInput('spacart-mobile-search-input', 'spacart-mobile-search-results');
+        },
 
-            if (!toggle || !box || !input) return;
-
-            toggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (box.style.display === 'none') {
-                    box.style.display = 'block';
-                    input.focus();
-                } else {
-                    box.style.display = 'none';
-                    results.innerHTML = '';
-                    results.classList.remove('active');
-                }
-            });
+        bindSearchInput: function(inputId, resultsId) {
+            var input = document.getElementById(inputId);
+            var results = document.getElementById(resultsId);
+            if (!input) return;
 
             input.addEventListener('input', SC.util.debounce(function() {
                 var query = input.value.trim();
                 if (query.length < 2) {
-                    results.innerHTML = '';
-                    results.classList.remove('active');
+                    if (results) {
+                        results.innerHTML = '';
+                        results.classList.remove('active');
+                    }
                     return;
                 }
 
@@ -453,12 +458,13 @@
                     url: config.baseUrl + '/instant_search',
                     data: {ajax: 1, q: query},
                     success: function(resp) {
+                        if (!results) return;
                         if (resp.html) {
                             results.innerHTML = resp.html;
                             results.classList.add('active');
                             SC.bindSpaLinks(results);
                         } else {
-                            results.innerHTML = '<div style="padding:15px;text-align:center;color:#999;">Aucun résultat</div>';
+                            results.innerHTML = '<div class="search-no-results">Aucun résultat</div>';
                             results.classList.add('active');
                         }
                     }
@@ -471,22 +477,24 @@
                     var query = input.value.trim();
                     if (query) {
                         SC.router.navigate('/search/' + encodeURIComponent(query));
-                        box.style.display = 'none';
-                        results.innerHTML = '';
-                        results.classList.remove('active');
+                        if (results) {
+                            results.innerHTML = '';
+                            results.classList.remove('active');
+                        }
+                        SC.sidebar.close();
                     }
                 }
                 if (e.key === 'Escape') {
-                    box.style.display = 'none';
-                    results.innerHTML = '';
-                    results.classList.remove('active');
+                    if (results) {
+                        results.innerHTML = '';
+                        results.classList.remove('active');
+                    }
                 }
             });
 
             // Close on outside click
             document.addEventListener('click', function(e) {
-                if (!box.contains(e.target) && e.target !== toggle) {
-                    box.style.display = 'none';
+                if (results && !input.contains(e.target) && !results.contains(e.target)) {
                     results.innerHTML = '';
                     results.classList.remove('active');
                 }
@@ -510,9 +518,9 @@
                 success: function(resp) {
                     if (resp.success) {
                         if (btn) {
-                            var icon = btn.querySelector('i');
-                            if (icon) {
-                                icon.textContent = resp.in_wishlist ? 'favorite' : 'favorite_border';
+                            var svg = btn.querySelector('svg');
+                            if (svg) {
+                                svg.setAttribute('fill', resp.in_wishlist ? 'var(--theme-color)' : 'none');
                             }
                         }
                         SC.util.toast(resp.message || (resp.in_wishlist ? 'Ajouté aux favoris' : 'Retiré des favoris'), 'success');
@@ -534,20 +542,19 @@
         init: function() {
             var trigger = document.getElementById('spacart-minicart-trigger');
             var dropdown = document.getElementById('spacart-minicart-dropdown');
-
             if (!trigger || !dropdown) return;
 
-            // Hover on desktop
             var showTimer, hideTimer;
+            var parent = trigger.closest('.head-icon-link') || trigger.parentElement;
 
-            trigger.addEventListener('mouseenter', function() {
+            parent.addEventListener('mouseenter', function() {
                 clearTimeout(hideTimer);
                 showTimer = setTimeout(function() {
                     dropdown.classList.add('active');
                 }, 200);
             });
 
-            trigger.parentElement.addEventListener('mouseleave', function() {
+            parent.addEventListener('mouseleave', function() {
                 clearTimeout(showTimer);
                 hideTimer = setTimeout(function() {
                     dropdown.classList.remove('active');
@@ -564,49 +571,237 @@
                 }, 300);
             });
 
-            // Bind remove buttons in mini cart
             SC.bindMiniCartActions(dropdown);
         }
     };
 
     // =============================================
-    // Banner Slider
+    // Sidebar (Mobile Navigation)
     // =============================================
+    SC.sidebar = {
+        init: function() {
+            var toggleBtn = document.getElementById('spacart-mobile-toggle');
+            var sidebar = document.getElementById('spacart-sidebar');
+            var overlay = document.getElementById('spacart-sidebar-overlay');
+            var closeBtn = document.getElementById('spacart-sidebar-close');
+
+            if (!toggleBtn || !sidebar) return;
+
+            toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                SC.sidebar.open();
+            });
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    SC.sidebar.close();
+                });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    SC.sidebar.close();
+                });
+            }
+
+            // Close sidebar when clicking a SPA link inside
+            sidebar.addEventListener('click', function(e) {
+                var link = e.target.closest('.spacart-spa-link, .spacart-mobile-close-link');
+                if (link) {
+                    setTimeout(function() { SC.sidebar.close(); }, 100);
+                }
+            });
+        },
+
+        open: function() {
+            var sidebar = document.getElementById('spacart-sidebar');
+            var overlay = document.getElementById('spacart-sidebar-overlay');
+            if (sidebar) sidebar.classList.add('open');
+            if (overlay) overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            SC.state.sidebarOpen = true;
+        },
+
+        close: function() {
+            var sidebar = document.getElementById('spacart-sidebar');
+            var overlay = document.getElementById('spacart-sidebar-overlay');
+            if (sidebar) sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+            document.body.style.overflow = '';
+            SC.state.sidebarOpen = false;
+        }
+    };
+
+    // =============================================
+    // Mega Menu (Desktop)
+    // =============================================
+    SC.megaMenu = {
+        init: function() {
+            var navItems = document.querySelectorAll('.nav-item.has-mega');
+            for (var i = 0; i < navItems.length; i++) {
+                (function(item) {
+                    var menu = item.querySelector('.mega-menu');
+                    if (!menu) return;
+
+                    item.addEventListener('mouseenter', function() {
+                        clearTimeout(SC.state.megaMenuTimeout);
+                        // Close all others
+                        var allMenus = document.querySelectorAll('.mega-menu.active');
+                        for (var j = 0; j < allMenus.length; j++) {
+                            if (allMenus[j] !== menu) allMenus[j].classList.remove('active');
+                        }
+                        menu.classList.add('active');
+                    });
+
+                    item.addEventListener('mouseleave', function() {
+                        SC.state.megaMenuTimeout = setTimeout(function() {
+                            menu.classList.remove('active');
+                        }, 200);
+                    });
+                })(navItems[i]);
+            }
+        }
+    };
+
+    // =============================================
+    // Banner Slider
     SC.banners = {
         init: function() {
-            var slider = document.querySelector('.spacart-banner-slider');
+            var slider = document.querySelector('.ef-hero-slider');
             if (!slider) return;
-
-            var slides = slider.querySelectorAll('.spacart-banner-slide');
-            var dots = slider.querySelectorAll('.spacart-banner-dot');
-            if (slides.length <= 1) return;
-
-            var current = 0;
-
-            function showSlide(idx) {
-                for (var i = 0; i < slides.length; i++) {
-                    slides[i].classList.remove('active');
-                    if (dots[i]) dots[i].classList.remove('active');
+            // Destroy previous instance if exists
+            if (SC.state.swiperInstance) {
+                SC.state.swiperInstance.destroy(true, true);
+                SC.state.swiperInstance = null;
+            }
+            SC.state.swiperInstance = new Swiper('.ef-hero-slider', {
+                loop: true,
+                autoplay: { delay: 5000, disableOnInteraction: false },
+                effect: 'fade',
+                fadeEffect: { crossFade: true },
+                speed: 800,
+                pagination: { el: '.swiper-pagination', clickable: true },
+                navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+                on: {
+                    slideChangeTransitionStart: function() {
+                        var active = this.slides[this.activeIndex];
+                        if (!active) return;
+                        var els = active.querySelectorAll('.ef-slide-title, .ef-slide-subtitle, .ef-slide-btn');
+                        for (var i = 0; i < els.length; i++) els[i].classList.remove('ef-animate-in');
+                    },
+                    slideChangeTransitionEnd: function() {
+                        var active = this.slides[this.activeIndex];
+                        if (!active) return;
+                        var els = active.querySelectorAll('.ef-slide-title, .ef-slide-subtitle, .ef-slide-btn');
+                        for (var i = 0; i < els.length; i++) {
+                            (function(el, delay) {
+                                setTimeout(function() { el.classList.add('ef-animate-in'); }, delay);
+                            })(els[i], i * 200);
+                        }
+                    }
                 }
-                slides[idx].classList.add('active');
-                if (dots[idx]) dots[idx].classList.add('active');
-                current = idx;
+            });
+            // Trigger animation on first slide
+            setTimeout(function() {
+                var firstSlide = document.querySelector('.ef-hero-slider .swiper-slide-active');
+                if (firstSlide) {
+                    var els = firstSlide.querySelectorAll('.ef-slide-title, .ef-slide-subtitle, .ef-slide-btn');
+                    for (var i = 0; i < els.length; i++) {
+                        (function(el, delay) {
+                            setTimeout(function() { el.classList.add('ef-animate-in'); }, delay);
+                        })(els[i], 300 + i * 200);
+                    }
+                }
+            }, 100);
+        }
+    };
+    // =============================================
+    // Tabs (Vanilla JS replacement for M.Tabs)
+    // =============================================
+    SC.tabs = {
+        init: function(container) {
+            container = container || document;
+            var tabGroups = container.querySelectorAll('.sc-tabs');
+
+            for (var t = 0; t < tabGroups.length; t++) {
+                (function(tabGroup) {
+                    var tabLinks = tabGroup.querySelectorAll('.sc-tab-link');
+                    var tabPanels = tabGroup.parentElement.querySelectorAll('.sc-tab-panel');
+
+                    for (var i = 0; i < tabLinks.length; i++) {
+                        (function(link, idx) {
+                            link.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                // Deactivate all
+                                for (var j = 0; j < tabLinks.length; j++) {
+                                    tabLinks[j].classList.remove('active');
+                                }
+                                for (var p = 0; p < tabPanels.length; p++) {
+                                    tabPanels[p].classList.remove('active');
+                                }
+                                // Activate clicked
+                                link.classList.add('active');
+                                var targetId = link.getAttribute('href') || link.dataset.target;
+                                if (targetId && targetId.charAt(0) === '#') {
+                                    var panel = document.querySelector(targetId);
+                                    if (panel) panel.classList.add('active');
+                                } else if (tabPanels[idx]) {
+                                    tabPanels[idx].classList.add('active');
+                                }
+                            });
+                        })(tabLinks[i], i);
+                    }
+                })(tabGroups[t]);
+            }
+        }
+    };
+
+    // =============================================
+    // Modal (Vanilla JS replacement for M.Modal)
+    // =============================================
+    SC.modal = {
+        open: function(modalId) {
+            var overlay = document.getElementById(modalId + '-overlay') || document.getElementById('spacart-quickview-overlay');
+            var modal = document.getElementById(modalId);
+            if (!modal) return;
+            if (overlay) overlay.classList.add('active');
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        },
+
+        close: function(modalId) {
+            var overlay = document.getElementById(modalId + '-overlay') || document.getElementById('spacart-quickview-overlay');
+            var modal = document.getElementById(modalId);
+            if (overlay) overlay.classList.remove('active');
+            if (modal) modal.classList.remove('active');
+            document.body.style.overflow = '';
+        },
+
+        init: function() {
+            // Quick view close button
+            var qvClose = document.getElementById('spacart-quickview-close');
+            if (qvClose) {
+                qvClose.addEventListener('click', function() {
+                    SC.modal.close('spacart-quickview-modal');
+                });
             }
 
-            // Auto-advance
-            if (SC.state.bannerTimer) clearInterval(SC.state.bannerTimer);
-            SC.state.bannerTimer = setInterval(function() {
-                showSlide((current + 1) % slides.length);
-            }, 5000);
-
-            // Dot clicks
-            for (var d = 0; d < dots.length; d++) {
-                (function(idx) {
-                    dots[idx].addEventListener('click', function() {
-                        showSlide(idx);
-                    });
-                })(d);
+            // Overlay click to close
+            var overlay = document.getElementById('spacart-quickview-overlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    SC.modal.close('spacart-quickview-modal');
+                });
             }
+
+            // ESC key to close
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    SC.modal.close('spacart-quickview-modal');
+                    SC.sidebar.close();
+                }
+            });
         }
     };
 
@@ -640,28 +835,140 @@
                     }
                 });
             });
+
+            // Allow Enter key
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    btn.click();
+                }
+            });
         }
     };
 
     // =============================================
-    // Logout
+    // Auth (Logout)
     // =============================================
     SC.auth = {
         init: function() {
-            var logoutLink = document.getElementById('spacart-logout-link');
-            if (logoutLink) {
-                logoutLink.addEventListener('click', function(e) {
-                    e.preventDefault();
+            var logoutLinks = document.querySelectorAll('.spacart-logout-link');
+            for (var i = 0; i < logoutLinks.length; i++) {
+                (function(link) {
+                    if (link.dataset.spaBound) return;
+                    link.dataset.spaBound = '1';
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        SC.util.ajax({
+                            url: config.apiUrl + '/customer/logout',
+                            method: 'POST',
+                            data: {token: config.sessionToken},
+                            success: function() {
+                                config.isLoggedIn = false;
+                                SC.util.toast('Déconnexion réussie', 'success');
+                                window.location.reload();
+                            }
+                        });
+                    });
+                })(logoutLinks[i]);
+            }
+        }
+    };
+
+    // =============================================
+    // Scroll To Top Button
+    // =============================================
+    SC.scrollTop = {
+        init: function() {
+            var btn = document.getElementById('spacart-scroll-top');
+            if (!btn) return;
+
+            window.addEventListener('scroll', function() {
+                if (window.pageYOffset > 400) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            });
+
+            btn.addEventListener('click', function() {
+                SC.util.scrollToTop();
+            });
+        }
+    };
+
+    // =============================================
+    // Theme Customizer
+    // =============================================
+    SC.customizer = {
+        init: function() {
+            if (!config.themeCustomizer) return;
+
+            var panel = document.getElementById('spacart-customizer');
+            var toggle = document.getElementById('spacart-customizer-toggle');
+            var applyBtn = document.getElementById('spacart-customizer-apply');
+
+            if (!panel || !toggle) return;
+
+            var selectedPrimary = null;
+            var selectedSecondary = null;
+
+            toggle.addEventListener('click', function() {
+                panel.classList.toggle('open');
+            });
+
+            // Primary color swatches
+            var primarySwatches = document.querySelectorAll('#spacart-palette-primary .color-swatch');
+            for (var i = 0; i < primarySwatches.length; i++) {
+                (function(swatch) {
+                    swatch.addEventListener('click', function() {
+                        for (var j = 0; j < primarySwatches.length; j++) {
+                            primarySwatches[j].classList.remove('selected');
+                        }
+                        swatch.classList.add('selected');
+                        selectedPrimary = swatch.dataset.color;
+                    });
+                })(primarySwatches[i]);
+            }
+
+            // Secondary color swatches
+            var secondarySwatches = document.querySelectorAll('#spacart-palette-secondary .color-swatch');
+            for (var s = 0; s < secondarySwatches.length; s++) {
+                (function(swatch) {
+                    swatch.addEventListener('click', function() {
+                        for (var j = 0; j < secondarySwatches.length; j++) {
+                            secondarySwatches[j].classList.remove('selected');
+                        }
+                        swatch.classList.add('selected');
+                        selectedSecondary = swatch.dataset.color;
+                    });
+                })(secondarySwatches[s]);
+            }
+
+            if (applyBtn) {
+                applyBtn.addEventListener('click', function() {
+                    if (selectedPrimary) {
+                        document.documentElement.style.setProperty('--theme-color', selectedPrimary);
+                        // Update RGB variant
+                        var hex = selectedPrimary.replace('#', '');
+                        var r = parseInt(hex.substr(0, 2), 16);
+                        var g = parseInt(hex.substr(2, 2), 16);
+                        var b = parseInt(hex.substr(4, 2), 16);
+                        document.documentElement.style.setProperty('--theme-color-rgb', r + ',' + g + ',' + b);
+                    }
+                    if (selectedSecondary) {
+                        document.documentElement.style.setProperty('--theme-color-2', selectedSecondary);
+                    }
+                    // Save to server
                     SC.util.ajax({
-                        url: config.apiUrl + '/customer/logout',
+                        url: config.apiUrl + '/theme/save',
                         method: 'POST',
-                        data: {token: config.sessionToken},
-                        success: function(resp) {
-                            config.isLoggedIn = false;
-                            SC.util.toast('Déconnexion réussie', 'success');
-                            window.location.reload();
+                        data: {
+                            primary_color: selectedPrimary || '',
+                            secondary_color: selectedSecondary || ''
                         }
                     });
+                    SC.util.toast('Theme updated!', 'success');
+                    panel.classList.remove('open');
                 });
             }
         }
@@ -675,7 +982,6 @@
         var links = container.querySelectorAll('.spacart-spa-link');
         for (var i = 0; i < links.length; i++) {
             (function(link) {
-                // Avoid double-binding
                 if (link.dataset.spaBound) return;
                 link.dataset.spaBound = '1';
 
@@ -687,12 +993,11 @@
                     }
                     if (href.indexOf('#/') === 0) {
                         e.preventDefault();
-                        var path = href.substring(1); // Remove #
+                        var path = href.substring(1);
                         window.location.hash = '#' + path;
 
-                        // Close sidenav on mobile
-                        var sidenav = M.Sidenav.getInstance(document.getElementById('spacart-sidenav'));
-                        if (sidenav) sidenav.close();
+                        // Close sidebar on mobile
+                        SC.sidebar.close();
                     }
                 });
             })(links[i]);
@@ -725,6 +1030,8 @@
         switch(page) {
             case 'home':
                 SC.banners.init();
+                SC.homeTabs.init();
+                SC.carousel.init();
                 SC.bindProductCards();
                 break;
 
@@ -762,6 +1069,10 @@
                 SC.bindComments();
                 break;
         }
+
+        // Always re-init tabs and material forms in new content
+        SC.tabs.init(document.getElementById('spacart-content'));
+        SC.materialForms.init();
     };
 
     SC.bindProductCards = function() {
@@ -837,13 +1148,11 @@
                 var variantId = null;
                 var options = {};
 
-                // Get selected variant
                 var selectedVariant = addForm.querySelector('.spacart-variant-option.selected');
                 if (selectedVariant) {
                     variantId = selectedVariant.dataset.variantId;
                 }
 
-                // Get selected options
                 var optionSelects = addForm.querySelectorAll('.spacart-option-select');
                 for (var i = 0; i < optionSelects.length; i++) {
                     var sel = optionSelects[i];
@@ -863,7 +1172,6 @@
                 opt.addEventListener('click', function() {
                     if (opt.classList.contains('disabled')) return;
 
-                    // Deselect others in same group
                     var group = opt.closest('.spacart-variant-group');
                     if (group) {
                         var siblings = group.querySelectorAll('.spacart-variant-option');
@@ -873,7 +1181,6 @@
                     }
                     opt.classList.add('selected');
 
-                    // Update price if variant has different price
                     if (opt.dataset.price) {
                         var priceEl = document.querySelector('.spacart-product-detail-price');
                         if (priceEl) {
@@ -901,12 +1208,6 @@
             })(thumbs[t]);
         }
 
-        // Tabs
-        var tabsEl = document.querySelector('.spacart-product-tabs .tabs');
-        if (tabsEl && typeof M !== 'undefined') {
-            M.Tabs.init(tabsEl);
-        }
-
         // Review form
         var reviewForm = document.getElementById('spacart-review-form');
         if (reviewForm) {
@@ -932,6 +1233,27 @@
                     }
                 });
             });
+        }
+
+        // Star rating selector
+        var stars = document.querySelectorAll('.spacart-rating-star');
+        var ratingInput = document.getElementById('spacart-rating-value');
+        for (var sr = 0; sr < stars.length; sr++) {
+            (function(star, idx) {
+                star.addEventListener('click', function() {
+                    if (ratingInput) ratingInput.value = idx + 1;
+                    for (var j = 0; j < stars.length; j++) {
+                        var svg = stars[j].querySelector('svg');
+                        if (svg) svg.setAttribute('fill', j <= idx ? 'var(--theme-color)' : 'none');
+                    }
+                });
+                star.addEventListener('mouseenter', function() {
+                    for (var j = 0; j < stars.length; j++) {
+                        var svg = stars[j].querySelector('svg');
+                        if (svg) svg.setAttribute('fill', j <= idx ? 'var(--theme-color)' : 'none');
+                    }
+                });
+            })(stars[sr], sr);
         }
 
         // Send to friend
@@ -990,6 +1312,17 @@
                 SC.router.navigate(base + (qstr ? '?' + qstr : ''));
             });
         }
+
+        // Collapsible filter sections
+        var filterHeaders = document.querySelectorAll('.filter-header');
+        for (var f = 0; f < filterHeaders.length; f++) {
+            (function(header) {
+                header.addEventListener('click', function() {
+                    var section = header.closest('.filter-section');
+                    if (section) section.classList.toggle('collapsed');
+                });
+            })(filterHeaders[f]);
+        }
     };
 
     SC.bindPagination = function() {
@@ -1023,6 +1356,36 @@
                     SC.cart.update(itemId, qty);
                 });
             })(qtyInputs[i]);
+        }
+
+        // Qty +/- buttons on cart page
+        var cartQtyMinus = document.querySelectorAll('.spacart-cart-qty-minus');
+        var cartQtyPlus = document.querySelectorAll('.spacart-cart-qty-plus');
+        for (var m = 0; m < cartQtyMinus.length; m++) {
+            (function(btn) {
+                btn.addEventListener('click', function() {
+                    var input = btn.parentElement.querySelector('.spacart-cart-qty');
+                    if (input) {
+                        var val = parseInt(input.value) || 1;
+                        if (val > 1) {
+                            input.value = val - 1;
+                            input.dispatchEvent(new Event('change'));
+                        }
+                    }
+                });
+            })(cartQtyMinus[m]);
+        }
+        for (var p = 0; p < cartQtyPlus.length; p++) {
+            (function(btn) {
+                btn.addEventListener('click', function() {
+                    var input = btn.parentElement.querySelector('.spacart-cart-qty');
+                    if (input) {
+                        var val = parseInt(input.value) || 1;
+                        input.value = val + 1;
+                        input.dispatchEvent(new Event('change'));
+                    }
+                });
+            })(cartQtyPlus[p]);
         }
 
         // Remove buttons
@@ -1081,13 +1444,11 @@
             currentStep = idx;
         }
 
-        // Next step buttons
         var nextBtns = document.querySelectorAll('.spacart-checkout-next');
         for (var n = 0; n < nextBtns.length; n++) {
             (function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    // Validate current step
                     if (SC.validateCheckoutStep(currentStep)) {
                         showStep(currentStep + 1);
                         SC.util.scrollToTop();
@@ -1096,7 +1457,6 @@
             })(nextBtns[n]);
         }
 
-        // Prev step buttons
         var prevBtns = document.querySelectorAll('.spacart-checkout-prev');
         for (var p = 0; p < prevBtns.length; p++) {
             (function(btn) {
@@ -1159,7 +1519,6 @@
     };
 
     SC.validateCheckoutStep = function(step) {
-        // Basic client-side validation
         var currentPanel = document.querySelectorAll('.spacart-checkout-panel')[step];
         if (!currentPanel) return true;
 
@@ -1173,7 +1532,6 @@
             }
         }
 
-        // Validate email format
         var emailInputs = currentPanel.querySelectorAll('input[type="email"]');
         for (var e = 0; e < emailInputs.length; e++) {
             if (emailInputs[e].value && emailInputs[e].value.indexOf('@') === -1) {
@@ -1234,13 +1592,10 @@
             success: function(resp) {
                 if (resp.success) {
                     if (resp.payment_redirect) {
-                        // Redirect to payment gateway
                         window.location.href = resp.payment_redirect;
                     } else if (resp.stripe_client_secret) {
-                        // Handle Stripe inline payment
                         SC.stripe.processPayment(resp.stripe_client_secret, resp.order_id);
                     } else {
-                        // Order placed (offline payment)
                         SC.util.toast('Commande confirmée !', 'success');
                         SC.cart.updateBadge(0, 0);
                         SC.router.navigate('/invoice/' + resp.order_id);
@@ -1281,7 +1636,6 @@
                         if (resp.success) {
                             config.isLoggedIn = true;
                             SC.util.toast('Connexion réussie', 'success');
-                            // Reload to update header
                             window.location.reload();
                         } else {
                             SC.util.toast(resp.message || 'Identifiants incorrects', 'error');
@@ -1303,7 +1657,6 @@
                 }
                 formData.token = config.sessionToken;
 
-                // Validate password match
                 if (formData.password !== formData.password_confirm) {
                     SC.util.toast('Les mots de passe ne correspondent pas', 'error');
                     return;
@@ -1328,6 +1681,9 @@
     };
 
     SC.bindProfilePage = function() {
+        // Profile tabs
+        SC.tabs.init(document.getElementById('spacart-content'));
+
         var profileForm = document.getElementById('spacart-profile-form');
         if (profileForm) {
             profileForm.addEventListener('submit', function(e) {
@@ -1401,61 +1757,14 @@
                     container.innerHTML = resp.html;
                     SC.bindSpaLinks(container);
                     SC.bindProductDetail();
-
-                    var modal = document.getElementById('spacart-quickview-modal');
-                    if (modal && typeof M !== 'undefined') {
-                        var instance = M.Modal.getInstance(modal) || M.Modal.init(modal);
-                        instance.open();
-                    }
+                    SC.modal.open('spacart-quickview-modal');
                 }
             }
         });
     };
 
     // =============================================
-    // Initialize Materialize Components
-    // =============================================
-    SC.initMaterialize = function() {
-        if (typeof M === 'undefined') return;
-
-        // Dropdowns
-        var dropdowns = document.querySelectorAll('.dropdown-trigger');
-        M.Dropdown.init(dropdowns, {
-            coverTrigger: false,
-            constrainWidth: false,
-            hover: true
-        });
-
-        // Sidenav
-        var sidenavs = document.querySelectorAll('.sidenav');
-        M.Sidenav.init(sidenavs);
-
-        // Modals
-        var modals = document.querySelectorAll('.modal');
-        M.Modal.init(modals);
-
-        // Selects
-        var selects = document.querySelectorAll('select:not(.browser-default)');
-        M.FormSelect.init(selects);
-
-        // Tooltips
-        var tooltips = document.querySelectorAll('.tooltipped');
-        M.Tooltip.init(tooltips);
-
-        // Text areas (auto resize)
-        var textareas = document.querySelectorAll('.materialize-textarea');
-        M.textareaAutoResize(textareas);
-
-        // Tabs
-        var tabs = document.querySelectorAll('.tabs');
-        M.Tabs.init(tabs);
-
-        // Update text fields (for pre-filled inputs)
-        M.updateTextFields();
-    };
-
-    // =============================================
-    // Stripe Integration (basic)
+    // Stripe Integration
     // =============================================
     SC.stripe = {
         instance: null,
@@ -1486,14 +1795,221 @@
     };
 
     // =============================================
+    // Sticky Header
+    // =============================================
+    SC.stickyHeader = {
+        init: function() {
+            var header = document.querySelector('.header-main');
+            if (!header) return;
+
+            var headerTop = header.offsetTop;
+            var lastScroll = 0;
+
+            window.addEventListener('scroll', function() {
+                var scrollY = window.pageYOffset;
+                if (scrollY > headerTop + 100) {
+                    header.classList.add('sticky');
+                } else {
+                    header.classList.remove('sticky');
+                }
+                lastScroll = scrollY;
+            });
+        }
+    };
+
+    // =============================================
+    // Language & Currency Selectors
+    // =============================================
+    SC.locale = {
+        init: function() {
+            var langSelect = document.getElementById('spacart-lang-select');
+            var currSelect = document.getElementById('spacart-currency-select');
+
+            if (langSelect) {
+                langSelect.addEventListener('change', function() {
+                    SC.util.ajax({
+                        url: config.apiUrl + '/language',
+                        method: 'POST',
+                        data: { language: langSelect.value },
+                        success: function() {
+                            window.location.reload();
+                        }
+                    });
+                });
+            }
+
+            if (currSelect) {
+                currSelect.addEventListener('change', function() {
+                    SC.util.ajax({
+                        url: config.apiUrl + '/currency',
+                        method: 'POST',
+                        data: { currency: currSelect.value },
+                        success: function(resp) {
+                            if (resp.symbol) {
+                                config.currencySymbol = resp.symbol;
+                            }
+                            window.location.reload();
+                        }
+                    });
+                });
+            }
+        }
+    };
+
+    // =============================================
+    // Scroll buttons for product carousels
+    // =============================================
+    SC.scrollCarousel = {
+        init: function() {
+            var wrappers = document.querySelectorAll('.products-scroll-wrapper');
+            for (var i = 0; i < wrappers.length; i++) {
+                (function(wrapper) {
+                    var prevBtn = wrapper.querySelector('.scroll-prev');
+                    var nextBtn = wrapper.querySelector('.scroll-next');
+                    var container = wrapper.querySelector('.responsive-columns');
+                    if (!container) return;
+                    var scrollAmount = 260;
+
+                    if (prevBtn) {
+                        prevBtn.addEventListener('click', function() {
+                            container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+                        });
+                    }
+                    if (nextBtn) {
+                        nextBtn.addEventListener('click', function() {
+                            container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                        });
+                    }
+                })(wrappers[i]);
+            }
+        }
+    };
+
+    // =============================================
+    // Home Tabs (Featured/Bestsellers/MostViewed/New)
+    // =============================================
+    SC.homeTabs = {
+        init: function() {
+            var tabList = document.getElementById('spacart-home-tabs');
+            if (!tabList) return;
+
+            var tabs = tabList.querySelectorAll('li[data-tab]');
+            for (var i = 0; i < tabs.length; i++) {
+                (function(tab) {
+                    if (tab.dataset.spaBound) return;
+                    tab.dataset.spaBound = '1';
+                    tab.addEventListener('click', function() {
+                        // Deactivate all tabs
+                        for (var j = 0; j < tabs.length; j++) {
+                            tabs[j].classList.remove('active');
+                        }
+                        // Deactivate all tab contents
+                        var contents = tabList.closest('.container').querySelectorAll('.tab-content');
+                        for (var c = 0; c < contents.length; c++) {
+                            contents[c].classList.remove('active');
+                        }
+                        // Activate clicked tab and its content
+                        tab.classList.add('active');
+                        var targetId = tab.dataset.tab;
+                        var targetPanel = document.getElementById(targetId);
+                        if (targetPanel) targetPanel.classList.add('active');
+                    });
+                })(tabs[i]);
+            }
+        }
+    };
+
+    // =============================================
+    // Carousel (horizontal scroll with buttons)
+    // =============================================
+    SC.carousel = {
+        init: function() {
+            var carousels = document.querySelectorAll('.carousel-pr');
+            for (var i = 0; i < carousels.length; i++) {
+                (function(carousel) {
+                    var content = carousel.querySelector('.carousel-content');
+                    var btnLeft = carousel.querySelector('.btn-left');
+                    var btnRight = carousel.querySelector('.btn-right');
+                    if (!content) return;
+
+                    var scrollAmount = 260;
+
+                    if (btnLeft) {
+                        btnLeft.addEventListener('click', function() {
+                            content.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+                        });
+                    }
+                    if (btnRight) {
+                        btnRight.addEventListener('click', function() {
+                            content.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                        });
+                    }
+
+                    // Touch/swipe support
+                    var startX = 0, moveX = 0;
+                    content.addEventListener('touchstart', function(e) {
+                        startX = e.touches[0].clientX;
+                    }, {passive: true});
+                    content.addEventListener('touchmove', function(e) {
+                        moveX = e.touches[0].clientX;
+                    }, {passive: true});
+                    content.addEventListener('touchend', function() {
+                        var diff = startX - moveX;
+                        if (Math.abs(diff) > 40) {
+                            content.scrollBy({ left: diff > 0 ? scrollAmount : -scrollAmount, behavior: 'smooth' });
+                        }
+                        startX = 0;
+                        moveX = 0;
+                    });
+                })(carousels[i]);
+            }
+        }
+    };
+
+    // =============================================
+    // Material Design Form Labels
+    // =============================================
+    SC.materialForms = {
+        init: function() {
+            // Handle pre-filled inputs: float label up if value exists
+            var groups = document.querySelectorAll('.material-form .group');
+            for (var i = 0; i < groups.length; i++) {
+                (function(group) {
+                    var input = group.querySelector('input, textarea');
+                    if (!input) return;
+
+                    // Check initial value
+                    if (input.value && input.value.trim() !== '') {
+                        group.classList.add('has-value');
+                    }
+
+                    // Listen for changes
+                    input.addEventListener('input', function() {
+                        if (input.value && input.value.trim() !== '') {
+                            group.classList.add('has-value');
+                        } else {
+                            group.classList.remove('has-value');
+                        }
+                    });
+
+                    input.addEventListener('blur', function() {
+                        if (input.value && input.value.trim() !== '') {
+                            group.classList.add('has-value');
+                        } else {
+                            group.classList.remove('has-value');
+                        }
+                    });
+                })(groups[i]);
+            }
+        }
+    };
+
+    // =============================================
     // Boot - Initialize everything
     // =============================================
     SC.init = function() {
         if (SC.state.initialized) return;
         SC.state.initialized = true;
-
-        // Init Materialize
-        SC.initMaterialize();
 
         // Bind all SPA links
         SC.bindSpaLinks();
@@ -1503,6 +2019,18 @@
         SC.miniCart.init();
         SC.newsletter.init();
         SC.auth.init();
+        SC.sidebar.init();
+        SC.megaMenu.init();
+        SC.modal.init();
+        SC.scrollTop.init();
+        SC.customizer.init();
+        SC.stickyHeader.init();
+        SC.tabs.init();
+        SC.locale.init();
+        SC.scrollCarousel.init();
+        SC.materialForms.init();
+        SC.carousel.init();
+        SC.homeTabs.init();
 
         // Init Stripe if key is present
         if (config.stripeKey) {

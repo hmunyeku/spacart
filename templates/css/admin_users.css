@@ -1,0 +1,7 @@
+.search_again {	float: right;}
+.users_management td.name {	width: 170px;
+	text-align: right;
+	padding-right: 10px;}
+.users_management td.name:after {	content: ":";
+}
+.users_list {	width: 900px;}

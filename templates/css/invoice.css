@@ -1,0 +1,16 @@
+.invoice-title {	width: 100%;
+	margin: 0 auto;
+}
+.invoice-table {	width: 100%;}
+.invoice-table h2 {	color: #484849;}
+.invoice-table th {	text-align: right;
+	padding: 0 15px 5px 0;
+}
+table.subtotal {	border-top: 1px solid #574e4e;}
+.subtotal td {
+	padding: 0 0 0 5px;
+}
+table.subtotal td {
+	line-height: 24px;
+}
+tr.totals td {	font-weight: bold;}

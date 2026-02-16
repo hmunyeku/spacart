@@ -1,46 +1,36 @@
-<!-- Wishlist Page -->
-
-<h5 style="margin-top:15px;">
-    <i class="material-icons left">favorite</i>Ma Liste de Souhaits
-</h5>
-
-<?php if (!empty($wishlist)) { ?>
-
-<div class="row">
-    <?php foreach ($wishlist as $item) { ?>
-    <div class="col l12 m12 s12">
-        <div class="spacart-wishlist-item card-panel">
-            <img src="<?php echo $item->photo_url; ?>" alt="<?php echo htmlspecialchars($item->label); ?>">
-            <div class="spacart-wishlist-item-info">
-                <a href="#/product/<?php echo $item->fk_product; ?>" class="spacart-spa-link">
-                    <strong><?php echo htmlspecialchars($item->label); ?></strong>
-                </a>
-                <p class="spacart-product-price"><?php echo spacartFormatPrice($item->price); ?></p>
-                <small class="grey-text">Ajouté le <?php echo date('d/m/Y', strtotime($item->date_creation)); ?></small>
-            </div>
-            <div style="flex-shrink:0;display:flex;gap:8px;align-items:center;">
-                <?php if ($item->stock_reel > 0 || $item->stock_reel === null) { ?>
-                    <a href="#!" class="btn btn-small spacart-add-to-cart" data-product-id="<?php echo $item->fk_product; ?>">
-                        <i class="material-icons left">add_shopping_cart</i>Ajouter
-                    </a>
-                <?php } else { ?>
-                    <span class="chip grey white-text">Rupture</span>
-                <?php } ?>
-                <a href="#!" class="btn-flat spacart-wishlist-btn" data-product-id="<?php echo $item->fk_product; ?>" title="Retirer">
-                    <i class="material-icons red-text">delete</i>
-                </a>
-            </div>
-        </div>
-    </div>
-    <?php } ?>
-</div>
-
-<?php } else { ?>
-
-<div class="spacart-empty-state">
-    <i class="material-icons large grey-text">favorite_border</i>
-    <p>Votre liste de souhaits est vide</p>
-    <a href="#/products" class="btn spacart-spa-link">Découvrir nos produits</a>
-</div>
-
-<?php } ?>
+<h1>{lng[Wishlist]}</h1>
+{if $wishlist}
+<table width="100%">
+<tr>
+ <th width="70%" align="left" colspan="2">{lng[Product]}</th>
+ <th width="20%">{lng[Price]}</th>
+ <td width="10%"></td>
+</tr>
+{foreach $wishlist as $v}
+{php $url = $v['product']['cleanurl'] ? $v['product']['cleanurl'].'.html' : 'product/'.$v['product']['productid'];}
+	<tr>
+	 <td class="image"><a href="{$current_location}/{$url}">
+	{if $v['product']['photo']}
+<?php
+		$image = $v['product']['photo'];
+		$image['new_width'] = 100;
+		$image['new_height'] = 100;
+		include SITE_ROOT . '/includes/image.php';
+?>
+	{/if}
+	 </a></td>
+	 <td><a href="{$current_location}/{$url}">{$v['product']['name']}</a></td>
+	 <td align="center" valign="middle">{price $v['product']['price']}</td>
+	 <td><a href="{$current_location}/wishlist/remove/{$v['wlid']}" class="remove-wl-link">{lng[Delete]}</a></td>
+	</tr>
+{/foreach}
+</table>
+<br />
+<hr />
+<br />
+<button type="button" class="clear-wl"<?php if (!$is_ajax) echo ' onclick="self.location=\'wishlist/clear\'"'; ?>>{lng[Clear wishlist]}</button>
+</form>
+{else}<br />
+{lng[Wishlist is empty]}
+<br /><br />
+{/if}

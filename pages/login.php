@@ -1,30 +1,74 @@
 <?php
-/**
- * SpaCart - Login page handler
- */
+q_load("user");
+if ($login) {
+	if ($is_ajax)
+		exit(lng("You are already logged in. Please, refresh the page"));
 
-if (!defined('SPACART_BOOT')) die('Access denied');
-
-require_once SPACART_PATH.'/includes/func/func.user.php';
-
-// Handle login POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['email'])) {
-    $email = trim($_POST['email']);
-    $password = $_POST['password'] ?? '';
-    $remember = !empty($_POST['remember']);
-
-    $result = spacart_login_customer($email, $password, $remember);
-    spacart_json_response($result);
-    exit;
+	redirect("/");
 }
 
-$page_title = 'Connexion - '.$spacart_config['title'];
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+	extract($_POST, EXTR_SKIP);
 
-$bc_items = array(
-    array('label' => 'Accueil', 'url' => '#/'),
-    array('label' => 'Connexion', 'url' => '')
-);
-$breadcrumbs_html = spacart_breadcrumbs($bc_items);
+	// SEC-CRIT-6: CSRF token verification
+	if (!spacart_csrf_verify()) {
+		if ($is_ajax) {
+			header("X-CSRF-Token: " . spacart_csrf_token());
+			exit("X");
+		}
+		$_SESSION["alerts"][] = array(
+			"type"		=> "e",
+			"content"	=> lng("Session expired. Please try again.")
+		);
+		redirect("/login");
+	}
 
-$tpl_vars = array('config' => $spacart_config);
-$page_html = spacart_render(SPACART_TPL_PATH.'/login/body.php', $tpl_vars);
+	// SEC-CRIT-5: Rate limiting
+	if (!spacart_check_rate_limit("login", 5, 900)) {
+		if ($is_ajax) {
+			header("X-CSRF-Token: " . spacart_csrf_token());
+			exit("R");
+		}
+		$_SESSION["alerts"][] = array(
+			"type"		=> "e",
+			"content"	=> lng("Too many login attempts. Please try again later.")
+		);
+		redirect("/login");
+	}
+
+	$user = $db->row("SELECT * FROM users WHERE email='".addslashes($email)."' AND status=1");
+
+	if (!spacart_password_verify($password, $user["password"], $user["salt"], $user["id"]))
+		$user = array();
+
+	if ($user) {
+		func_login($user["id"]);
+		if ($is_ajax) {
+			header("X-CSRF-Token: " . spacart_csrf_token());
+			exit("G");
+		}
+
+		redirect($_SERVER["HTTP_REFERER"], 1);
+	} else {
+		// SEC-CRIT-5: Record failed attempt
+		spacart_record_attempt("login");
+		// SEC-CRIT-7: Unified error - no user enumeration
+		if ($is_ajax) {
+			header("X-CSRF-Token: " . spacart_csrf_token());
+			exit("F");
+		}
+
+		$_SESSION["alerts"][] = array(
+			"type"		=> "e",
+			"content"	=> lng("login_incorrect")
+		);
+		redirect("/login");
+	}
+}
+
+if ($is_ajax && !$_GET["its_ajax_page"]) {
+	exit(get_template_contents("login/body.php"));
+} else {
+	$template["page"] = get_template_contents("login/body.php");
+	$template["is_login_page"] = true;
+}

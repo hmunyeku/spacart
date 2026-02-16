@@ -1,0 +1,32 @@
+.popup {
+	position: absolute;
+	top: 10px;
+   	background: #fff;
+	border: 10px solid rgba(0, 0, 0, .3);
+	-webkit-background-clip: padding-box;
+	background-clip: padding-box;
+	-webkit-border-radius: 10px;
+	-moz-border-radius: 10px;
+	border-radius: 10px;
+	z-index: 1000;
+	max-width: 900px;
+}
+.popup img.close {
+	position: absolute;
+	top: -20px;
+	right: -20px;
+	cursor: pointer;
+	padding: 5px;
+	background: #efefef;
+-webkit-border-radius: 10px;
+-moz-border-radius: 10px;
+border-radius: 10px;
+}
+#popup_product td {
+	width: 50%;
+	vertical-align: top;
+	text-align: center;
+}
+#popup_product td select {
+	width: 100%;
+}

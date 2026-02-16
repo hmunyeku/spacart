@@ -1,0 +1,18 @@
+.dashboard-statistic {	width: 800px;
+	padding-bottom: 10px;}
+.dashboard-statistic h3 {
+	padding: 0;
+}
+.dashboard-statistic td.first, .dashboard-statistic td.second {
+	width: 50%;
+	padding: 0 10px 0 0;
+	vertical-align: top;
+}
+.dashboard-statistic table {	width: 100%;
+}
+.dashboard-statistic table td {	text-align: center;
+}
+.dashboard {	width: 800px;}
+.dashboard td {	width: 50%;
+	padding: 0 10px 0 0;
+	vertical-align: top;}

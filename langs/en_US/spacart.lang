@@ -1,10 +1,13 @@
 # SpaCart - English translations
 # Copyright (C) 2024-2026 CoexDis
 
+# Module
 Module500100Name = SpaCart
 Module500100Desc = SPA Online Shop module integrated with Dolibarr
 
+# Admin
 SpaCartSetup = SpaCart Configuration
+SpaCartAbout = About SpaCart
 Configuration = Configuration
 GeneralSettings = General Settings
 PaymentSettings = Payment Settings
@@ -24,32 +27,218 @@ ShopClosed = Shop Closed
 FreeShippingThreshold = Free Shipping Above
 AbandonedCartDelay = Abandoned Cart Reminder Delay (hours)
 
+# Stripe
 StripeSettings = Stripe Settings
 StripePublishableKey = Stripe Publishable Key
 StripeSecretKey = Stripe Secret Key
 StripeWebhookSecret = Stripe Webhook Secret
 
+# PayPal
 PayPalSettings = PayPal Settings
 PayPalClientId = PayPal Client ID
 PayPalSecret = PayPal Secret
 PayPalSandbox = PayPal Sandbox Mode
 
+# Braintree
 BraintreeSettings = Braintree Settings
 BraintreeMerchantId = Braintree Merchant ID
 BraintreePublicKey = Braintree Public Key
 BraintreePrivateKey = Braintree Private Key
 BraintreeSandbox = Braintree Sandbox Mode
 
+# SEO & Integrations
+RecaptchaSiteKey = reCAPTCHA Site Key
+RecaptchaSecretKey = reCAPTCHA Secret Key
+TawkToId = Tawk.to Widget ID
+AnalyticsId = Google Analytics ID
+
+# Shipping
+ShippingZones = Shipping Zones
+ShippingMethods = Shipping Methods
+ShippingRates = Shipping Rates
+AddZone = Add Zone
+AddMethod = Add Method
+National = National
+International = International
+
+# Taxes
+TaxRules = Tax Rules
+TaxRates = Tax Rates
+AddTax = Add Tax
+
+# Products
+FeaturedProducts = Featured Products
+RelatedProducts = Related Products
+ProductVariants = Variants
+ProductOptions = Options
+WholesalePrices = Wholesale Prices
+Reviews = Customer Reviews
+AddReview = Add Review
+
+# Cart
 ShoppingCart = Shopping Cart
 AddToCart = Add to Cart
+RemoveFromCart = Remove from Cart
+UpdateCart = Update Cart
+Subtotal = Subtotal
+Total = Total
+EmptyCart = Your cart is empty
+ContinueShopping = Continue Shopping
 ProceedToCheckout = Proceed to Checkout
+
+# Checkout
 Checkout = Checkout
+Step1Info = Your Information
+Step2Address = Shipping Address
+Step3Payment = Payment
+ShippingAddress = Shipping Address
+BillingAddress = Billing Address
+SameAsShipping = Same as shipping address
 PlaceOrder = Place Order
 OrderConfirmation = Order Confirmation
 OrderThankYou = Thank you for your order!
 
+# Coupons
+CouponCode = Coupon Code
+ApplyCoupon = Apply
+CouponApplied = Coupon applied
+CouponInvalid = Invalid coupon code
+CouponExpired = Expired coupon code
+Coupons = Coupons
+AddCoupon = Add Coupon
+CouponType = Discount Type
+CouponValue = Value
+CouponMinOrder = Minimum Order
+CouponMaxUses = Max Uses
+CouponPerCustomer = Per Customer
+
+# Gift cards
+GiftCards = Gift Cards
+GiftCardCode = Gift Card Code
+GiftCardBalance = Balance
+ApplyGiftCard = Apply
+AddGiftCard = Create Gift Card
+
+# Customer
+MyAccount = My Account
+Login = Sign In
+Register = Sign Up
+Logout = Sign Out
+Email = Email
+Password = Password
+ConfirmPassword = Confirm Password
+ForgotPassword = Forgot password?
+RememberMe = Remember me
+FirstName = First Name
+LastName = Last Name
+Phone = Phone
+Address = Address
+City = City
+ZipCode = Zip Code
+Country = Country
+State = State / Region
+MyOrders = My Orders
+MyWishlist = My Wishlist
+MyProfile = My Profile
+
+# Blog & CMS
+Blog = Blog
+News = News
+ReadMore = Read More
+PostComment = Post a Comment
+Pages = Pages
+Testimonials = Testimonials
+Banners = Banners
+
+# Status
+Enabled = Enabled
+Disabled = Disabled
+Pending = Pending
+Approved = Approved
+Published = Published
+Draft = Draft
+
+# Dashboard
 Dashboard = Dashboard
 TotalOrders = Total Orders
 TotalRevenue = Total Revenue
-TotalCustomers = Total Customers
+TotalCustomers = Customers
+AbandonedCarts = Abandoned Carts
+RecentOrders = Recent Orders
 ViewShop = View Shop
+
+# Search
+Search = Search
+SearchResults = Search Results
+NoResults = No results found
+InstantSearch = Quick Search
+Rechercher... = Search...
+
+# Misc
+ViewAll = View All
+LoadMore = Load More
+Categories = Categories
+Brands = Brands
+NewArrivals = New Arrivals
+BestSellers = Best Sellers
+MostViewed = Most Viewed
+SendToFriend = Send to a Friend
+QuickView = Quick View
+RecentlyViewed = Recently Viewed
+Newsletter = Newsletter
+Subscribe = Subscribe
+SubscribeSuccess = Successfully subscribed!
+
+# Multi-language
+Language = Language
+SelectLanguage = Select language
+French = French
+English = English
+SelectCurrency = Select currency
+
+# Header
+Home = Home
+Accueil = Home
+AllProducts = All Products
+Cart = Cart
+Wishlist = Wishlist
+SignIn = Sign In
+SignUp = Sign Up
+
+# Footer
+QuickLinks = Quick Links
+Information = Information
+FollowUs = Follow Us
+PoweredBy = Powered by SpaCart
+SubscribeNewsletter = Subscribe to our newsletter
+SubscribeDesc = Get our latest offers and news directly in your inbox
+YourEmail = Your email address
+
+# Product
+OutOfStock = Out of Stock
+InStock = In Stock
+New = New
+Description = Description
+Details = Details
+CustomerReviews = Customer Reviews
+LeaveReview = Leave a Review
+YourName = Your name
+ReviewTitle = Title (optional)
+YourReview = Your review
+SubmitReview = Submit Review
+FromUnits = From %s units
+FreeShipping = Free Shipping
+FreeShippingDesc = Free delivery on orders over 50€
+SecurePayment = Secure Payment
+MoneyBack = Money Back Guarantee
+MoneyBackDesc = 30 days to change your mind
+Support247 = 24/7 Support
+Support247Desc = Have a question? Contact us
+ViewCart = View Cart
+Products = Products
+ViewAllNew = View All New Arrivals
+WhatCustomersSay = What our customers say
+LatestNews = Latest News
+PasswordReset = Password Reset
+Help = Help
+SupportDesk = Support

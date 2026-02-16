@@ -1,0 +1,16 @@
+.cart_popup, .wl_popup {	max-width: 600px;	min-width: 400px;
+	padding: 10px;
+}
+.cart_popup h1, .wl_popup h1 {
+	color: #494948;
+	padding: 0 0 5px 0;
+	border-bottom: 1px solid #ccc;
+	margin: 0 0 10px 0;
+}
+td {	vertical-align: top;}
+.image {	width: 10%;
+	padding-right: 10px;}
+.remove_coupon {	cursor: pointer;}
+.cart-quantity {	width: 40px;}
+#cartform table table, .checkout_products table {	font-size: 14px;
+	margin-bottom: 15px;}

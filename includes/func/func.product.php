@@ -1,565 +1,489 @@
 <?php
-/**
- * SpaCart - Product functions
- * Read products from Dolibarr llx_product + spacart extras
- */
+function func_select_product($productid, $variantid = false, $amount = 0) {
+	global $db, $userinfo;
+	global $warehouse_enabled;
+	$product = $db->row("SELECT p.*, c.categoryid FROM products p, category_products c WHERE p.productid='".addslashes($productid)."' AND p.productid=c.productid AND c.main='Y' AND p.status<>2");
+	if ($product['brandid']) {
+		$product['brand'] = $db->row("SELECT * FROM brands WHERE brandid='".$product['brandid']."'");
+		$product['brand_image'] = $db->row("SELECT * FROM brand_images WHERE brandid='".$product['brandid']."'");
+	}
 
-/**
- * Get product list with filters, sorting and pagination
- */
-function spacart_get_products($filters = array(), $sort = 'date_desc', $page = 1, $limit = 12)
-{
+	if ($variantid) {
+		$variant = $db->row("SELECT * FROM variants WHERE variantid='".addslashes($variantid)."'");
+		$product = array_merge($product, $variant);
+		$product['name'] = $product['title'];
+		# Check for wholesale pricing
+		$tmp = $db->field("SELECT price FROM wholesale_prices WHERE membershipid IN (0, '".$userinfo['membershipid']."') AND variantid='".$variantid."' AND quantity<='".$amount."' ORDER BY quantity DESC");
+		if ($tmp)
+			$product['price'] = $tmp;
+
+		if ($warehouse_enabled) {
+			$product['avail'] = $db->field("SELECT SUM(avail) FROM product_inventory WHERE productid='$productid' AND variantid='".addslashes($variantid)."'");
+			if (!$product['avail'])
+				$product['avail'] = 0;
+
+			if ($variant['avail_block']) {
+				$product['avail'] -= $variant['avail_block'];
+				$product['avail_block'] = $variant['avail_block'];
+			}
+		}
+
+		if ($amount > $product['avail'])
+			$product['quantity'] = $product['avail'];
+
+		$product['variant_photo'] = $db->row("SELECT * FROM variant_images WHERE variantid='".addslashes($variantid)."' ORDER BY imageid");
+	} else {
+		if ($warehouse_enabled) {
+			$has_variants = $db->field("SELECT COUNT(variantid) FROM variants WHERE productid='$productid'");
+			if ($has_variants)
+				$product['avail'] = $db->field("SELECT SUM(avail) FROM product_inventory WHERE productid='$productid' AND variantid<>0");
+			else
+				$product['avail'] = $db->field("SELECT SUM(avail) FROM product_inventory WHERE productid='$productid' AND variantid=0");
+
+			if (!$product['avail'])
+				$product['avail'] = 0;
+
+			if ($product['avail_block'])
+				$product['avail'] -= $product['avail_block'];
+		}
+
+		# Check for wholesale pricing
+		$tmp = $db->field("SELECT price FROM wholesale_prices WHERE membershipid IN (0, '".$userinfo['membershipid']."') AND productid='".addslashes($productid)."' AND variantid=0 AND quantity<='".$amount."' ORDER BY quantity DESC");
+		if ($tmp)
+			$product['price'] = $tmp;
+
+		if ($amount > $product['avail'])
+			$product['quantity'] = $product['avail'];
+	}
+
+	if (empty($product['variant_photo']) && $product['photoid'])
+		$product['photo'] = $db->row("SELECT * FROM products_photos WHERE photoid='".$product['photoid']."'");
+
+	return $product;
+}
+
+function func_all_variants($ars) {
+	$result = array();
+	$ars = array_values($ars);
+	$sizeIn = sizeof($ars);
+	$size = $sizeIn > 0 ? 1 : 0;
+	foreach ($ars as $ar)
+		$size = $size * sizeof($ar);
+
+	for ($i = 0; $i < $size; $i++) {
+		$result[$i] = array();
+		for ($j = 0; $j < $sizeIn; $j++)
+			array_push($result[$i], current($ars[$j]));
+
+		for ($j = ($sizeIn -1); $j >= 0; $j--) {
+			if (next($ars[$j]))
+				break;
+			elseif (isset ($ars[$j]))
+				reset($ars[$j]);
+		}
+	}
+
+	return $result;
+}
+
+
+function func_sku_exist($sku) {
+	global $db;
+
+	if ($db->field("SELECT COUNT(*) FROM products WHERE sku='".$sku."'"))
+		return true;
+
+	if ($db->field("SELECT COUNT(*) FROM variants WHERE sku='".$sku."'"))
+		return true;
+}
+
+function func_delete_product($productid) {
+	global $db;
+
+	$product = $db->row("SELECT * FROM products WHERE productid='".$productid."'");
+	if (!$product)
+		return;
+
+	$db->query("UPDATE llx_product SET tosell=0, tobuy=0 WHERE rowid='".$productid."'");
+	$db->query("DELETE FROM wishlist WHERE productid='".$productid."'");
+	$db->query("DELETE FROM wholesale_prices WHERE productid='".$productid."'");
+	$variants = $db->all("SELECT * FROM variants WHERE productid='".$productid."'");
+	if ($variants) {
+		foreach ($variants as $v)
+			func_delete_variant($v['variantid']);
+	}
+
+	$images = $db->all("SELECT * FROM products_photos WHERE productid='".$productid."'");
+	if ($images) {
+		$dir = SITE_ROOT . '/photos/product/'.$productid;
+		foreach ($images as $v) {
+			$dir2 = $dir . '/' . $v['photoid'];
+			unlink($dir2 . '/' . $v['file']);
+			rmdir($dir2);
+		}
+
+		rmdir($dir);
+		$db->query("DELETE FROM products_photos WHERE productid='".$productid."'");
+	}
+
+	$options = $db->all("SELECT * FROM option_groups WHERE productid='".$productid."'");
+	if ($options) {
+		foreach ($options as $v) {
+			$db->query("DELETE FROM options WHERE groupid='".$v['groupid']."'");
+		}
+
+		$db->query("DELETE FROM option_groups WHERE productid='".$productid."'");
+	}
+
+	$db->query("DELETE FROM featured_products WHERE productid='".$productid."'");
+	$db->query("DELETE FROM category_products WHERE productid='".$productid."'");
+}
+
+function func_delete_variant($variantid) {
+	global $db;
+
+	$vid = addslashes($variantid);
+	$db->query("DELETE FROM variants WHERE variantid='".$vid."'");
+	$db->query("DELETE FROM variant_items WHERE variantid='".$vid."'");
+	$db->query("DELETE FROM wholesale_prices WHERE variantid='".$vid."'");
+	$images = $db->all("SELECT * FROM variant_images WHERE variantid='".$vid."'");
+	if ($images) {
+		$dir = SITE_ROOT . '/photos/variant/'.$variantid;
+		foreach ($images as $k=>$v) {
+			$dir2 = $dir . '/' . $v['imageid'];
+			unlink($dir2 . '/' . $v['file']);
+			rmdir($dir2);
+		}
+
+		rmdir($dir);
+		$db->query("DELETE FROM variant_images WHERE variantid='".$vid."'");
+	}
+}
+
+function func_delete_variant_image($imageid) {
+	global $db;
+
+	$imgid = addslashes($imageid);
+	$image = $db->row("SELECT * FROM variant_images WHERE imageid='".$imgid."'");
+	if ($image) {
+		$dir = SITE_ROOT . '/photos/variant/'.$image['variantid'] . '/' . $image['imageid'];
+		unlink($dir . '/' . $image['file']);
+		rmdir($dir);
+		$db->query("DELETE FROM variant_images WHERE imageid='".$imgid."'");
+	}
+}
+
+function func_get_variantid($options, $productid = false) {
     global $db;
+    if (empty($options) || !is_array($options))
+        return false;
 
-    $offset = ($page - 1) * $limit;
-    $where = array("p.entity IN (".getEntity('product').")");
-    $where[] = "p.fk_product_type = 0"; // Only products, not services
-    $where[] = "p.tosell = 1";
+    $ids = array_map('intval', array_keys($options));
+    $ids = array_map('addslashes', $ids);
+    $vids = $db->all("SELECT groupid FROM option_groups WHERE view_type NOT IN ('p', 's', 'r') AND groupid IN ('" . implode("','", $ids) . "')");
+    if (!empty($vids))
+        foreach ($vids as $v)
+            unset($options[$v['groupid']]);
 
-    $join = '';
+    if (empty($options))
+        return false;
 
-    // Category filter
-    if (!empty($filters['category_id'])) {
-        $catId = (int) $filters['category_id'];
-        // Include subcategories
-        $catIds = spacart_get_category_ids_recursive($catId);
-        $join .= " INNER JOIN ".MAIN_DB_PREFIX."categorie_product cp ON cp.fk_product = p.rowid";
-        $where[] = "cp.fk_categorie IN (".implode(',', array_map('intval', $catIds)).")";
+    if ($productid === false) {
+        $ids = array_map('intval', array_keys($options));
+	    $ids = array_map('addslashes', $ids);
+        $productid = $db->field("SELECT productid FROM option_groups WHERE groupid IN ('" . implode("','", $ids) . "')");
     }
 
-    // Brand filter (stored as extrafield or category type)
-    if (!empty($filters['brand'])) {
-        $brandCat = (int) $filters['brand'];
-        $join .= " INNER JOIN ".MAIN_DB_PREFIX."categorie_product cpb ON cpb.fk_product = p.rowid";
-        $where[] = "cpb.fk_categorie = ".$brandCat;
-    }
+    $cnt = $db->field("SELECT COUNT(DISTINCT g.groupid) FROM option_groups g, options o WHERE g.variant=1 AND g.enabled=1 AND g.productid='".$productid."' AND g.groupid = o.groupid AND o.enabled=1");
+    if ($cnt != count($options))
+        return false;
 
-    // Price range
-    if (!empty($filters['price_min'])) {
-        $where[] = "p.price >= ".((float) $filters['price_min']);
-    }
-    if (!empty($filters['price_max'])) {
-        $where[] = "p.price <= ".((float) $filters['price_max']);
-    }
+    $options = array_map('intval', $options);
+    $options = array_map('addslashes', $options);
 
-    // Search
-    if (!empty($filters['search'])) {
-        $search = $db->escape($filters['search']);
-        $where[] = "(p.ref LIKE '%".$search."%' OR p.label LIKE '%".$search."%' OR p.description LIKE '%".$search."%')";
-    }
-
-    // In stock only
-    if (!empty($filters['in_stock'])) {
-        $where[] = "(p.stock_reel > 0 OR p.fk_default_warehouse IS NULL)";
-    }
-
-    // Featured
-    if (!empty($filters['featured'])) {
-        $join .= " INNER JOIN ".MAIN_DB_PREFIX."spacart_featured sf ON sf.fk_product = p.rowid AND sf.active = 1";
-    }
-
-    // Sorting
-    $orderBy = 'p.datec DESC';
-    switch ($sort) {
-        case 'price_asc':
-            $orderBy = 'p.price ASC';
-            break;
-        case 'price_desc':
-            $orderBy = 'p.price DESC';
-            break;
-        case 'name_asc':
-            $orderBy = 'p.label ASC';
-            break;
-        case 'name_desc':
-            $orderBy = 'p.label DESC';
-            break;
-        case 'date_asc':
-            $orderBy = 'p.datec ASC';
-            break;
-        case 'date_desc':
-            $orderBy = 'p.datec DESC';
-            break;
-        case 'popular':
-            $orderBy = 'p.nb_views DESC';
-            break;
-        case 'bestseller':
-            $orderBy = 'sold_count DESC';
-            break;
-    }
-
-    $whereStr = implode(' AND ', $where);
-
-    // Count total
-    $sqlCount = "SELECT COUNT(DISTINCT p.rowid) as total";
-    $sqlCount .= " FROM ".MAIN_DB_PREFIX."product p";
-    $sqlCount .= " ".$join;
-    $sqlCount .= " WHERE ".$whereStr;
-
-    $resCount = $db->query($sqlCount);
-    $total = 0;
-    if ($resCount) {
-        $obj = $db->fetch_object($resCount);
-        $total = (int) $obj->total;
-    }
-
-    // Bestseller subquery
-    $soldField = '';
-    if ($sort === 'bestseller') {
-        $soldField = ", COALESCE((SELECT SUM(cd.qty) FROM ".MAIN_DB_PREFIX."commandedet cd
-            INNER JOIN ".MAIN_DB_PREFIX."commande c ON c.rowid = cd.fk_commande
-            WHERE cd.fk_product = p.rowid AND c.fk_statut >= 1), 0) as sold_count";
-    }
-
-    // Main query
-    $sql = "SELECT DISTINCT p.rowid, p.ref, p.label, p.description, p.price, p.price_ttc,";
-    $sql .= " p.price_base_type, p.tva_tx, p.stock_reel, p.datec, p.weight, p.weight_units,";
-    $sql .= " p.fk_product_type, p.tobuy, p.tosell, p.barcode, p.note_public";
-    $sql .= $soldField;
-    $sql .= " FROM ".MAIN_DB_PREFIX."product p";
-    $sql .= " ".$join;
-    $sql .= " WHERE ".$whereStr;
-    $sql .= " ORDER BY ".$orderBy;
-    $sql .= " LIMIT ".(int) $limit." OFFSET ".(int) $offset;
-
-    $products = array();
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $obj->photo_url = spacart_product_photo_url($obj->rowid, $obj->ref);
-            $obj->is_new = (strtotime($obj->datec) > strtotime('-30 days'));
-            $obj->in_stock = ($obj->stock_reel > 0 || $obj->stock_reel === null);
-            $products[] = $obj;
-        }
-    }
-
-    return array(
-        'items' => $products,
-        'total' => $total,
-        'page' => $page,
-        'limit' => $limit,
-        'pages' => $limit > 0 ? ceil($total / $limit) : 1
-    );
+    return $db->field("SELECT variantid, COUNT(variantid) as cnt FROM variant_items WHERE variant_items.optionid IN ('".implode("','", $options)."') GROUP BY variantid HAVING cnt=".$cnt."");
 }
 
-/**
- * Get single product with all details
- */
-function spacart_get_product($id)
-{
-    global $db;
+function func_get_default_options($productid, $amount, $membershipid = 0) {
+	global $db, $_orderby, $config;
 
-    $sql = "SELECT p.rowid, p.ref, p.label, p.description, p.note_public,";
-    $sql .= " p.price, p.price_ttc, p.price_base_type, p.tva_tx,";
-    $sql .= " p.stock_reel, p.datec, p.weight, p.weight_units,";
-    $sql .= " p.barcode, p.fk_product_type, p.tosell";
-    $sql .= " FROM ".MAIN_DB_PREFIX."product p";
-    $sql .= " WHERE p.rowid = ".(int) $id;
-    $sql .= " AND p.entity IN (".getEntity('product').")";
+	# Get product options
+	$groups = $db->all("SELECT g.groupid, g.view_type FROM option_groups g LEFT JOIN options o ON g.groupid=o.groupid AND o.enabled=1 WHERE o.enabled=1 AND g.productid='".$productid."' AND (o.groupid IS NOT NULL OR g.view_type IN ('t', 'i')) GROUP BY g.groupid ORDER BY g.orderby");
+	if (empty($groups))
+		return true;
 
-    $resql = $db->query($sql);
-    if (!$resql || !$db->num_rows($resql)) {
-        return null;
-    }
+	$tmp = array();
+	foreach ($groups as $k=>$v)
+		$tmp[$v['groupid']][] = $v;
 
-    $product = $db->fetch_object($resql);
-    $product->photo_url = spacart_product_photo_url($product->rowid, $product->ref);
-    $product->photos = spacart_product_photos($product->ref);
-    $product->categories = spacart_get_product_categories($product->rowid);
-    $product->variants = spacart_get_product_variants($product->rowid);
-    $product->options = spacart_get_product_options($product->rowid);
-    $product->reviews = spacart_get_product_reviews($product->rowid);
-    $product->avg_rating = spacart_get_product_avg_rating($product->rowid);
-    $product->review_count = count($product->reviews);
-    $product->related = spacart_get_related_products($product->rowid);
-    $product->wholesale_prices = spacart_get_wholesale_prices($product->rowid);
-    $product->in_stock = ($product->stock_reel > 0 || $product->stock_reel === null);
-    $product->is_new = (strtotime($product->datec) > strtotime('-30 days'));
+	$groups = $tmp;
+	$_product_options = array();
+	$_orderby = array_keys($groups);
+	$_orderby = array_flip($_orderby);
+	# Get default variant
+	$variant_counter = $db->field("SELECT COUNT(DISTINCT g.groupid) FROM option_groups g, options o, variant_items v WHERE g.groupid=o.groupid AND o.enabled=1 AND g.enabled=1 AND g.productid='".$productid."' AND g.variant=1 AND v.optionid=o.optionid");
+	if ($variant_counter > 0) {
 
-    // Increment views
-    spacart_increment_product_views($product->rowid);
+		$avail_where = "";
+		if ($config["General"]["unlimited_products"] == "N")
+			$avail_where = "AND avail >= ".$amount;
 
-    return $product;
+		# Detect default variant
+		$def_variantid = $db->field("SELECT variantid FROM variants WHERE productid='".$productid."' AND def=1 ".$avail_where);
+		if (!empty($def_variantid)) {
+			$tmp = $db->all("SELECT o.groupid, o.optionid FROM options o, variant_items v WHERE v.variantid='".$def_variantid."' AND v.optionid=o.optionid");
+			if (count($tmp) != $variant_counter)
+				return false;
+
+			$_product_options = array();
+			foreach ($tmp as $v)
+				$_product_options[$v['groupid']] = $v['optionid'];
+
+			# Check exceptions
+			$tmp = $db->all("SELECT exceptionid, COUNT(optionid) as cnt FROM options_ex WHERE optionid IN ('".implode("','", $_product_options)."') GROUP BY exceptionid");
+			if (!empty($tmp)) {
+				$exceptions = array();
+				foreach ($tmp as $v)
+					$exceptions[$v['exceptionid']] = $v['cnt'];
+
+				# Get exceptions counters
+				$tmp = $db->all("SELECT exceptionid, COUNT(optionid) as cnt FROM options_ex WHERE exceptionid IN ('".implode("','", array_keys($exceptions))."') GROUP BY exceptionid");
+				$exception_counters = array();
+				foreach ($tmp as $v)
+					$exception_counters[$v['exceptionid']] = $v['cnt'];
+
+				foreach ($exceptions as $eid => $cnt) {
+					if ($exception_counters[$eid] == $cnt) {
+						$_product_options = array();
+						break;
+
+					}
+				}
+
+				if (!empty($_product_options)) {
+					$exceptions = $db->hash("SELECT o.groupid, COUNT(e.exceptionid) as cnt FROM options_ex e, options o WHERE e.optionid=o.optionid AND e.exceptionid IN ('".implode("','", array_keys($exceptions))."') AND e.optionid NOT IN ('".implode("','", $_product_options)."') GROUP BY o.groupid", "groupid", false, true);
+					if (!empty($exceptions)) {
+						$class_counters = $db->hash("SELECT groupid, COUNT(*) FROM options WHERE groupid IN ('".implode("','", array_keys($exceptions))."') AND enabled=1 GROUP BY groupid", "groupid", false, true);
+						foreach ($exceptions as $cid => $cnt) {
+							if (isset($classes[$cid]) && isset($class_counters[$cid]) && $class_counters[$cid] == $cnt) {
+								$_product_options = array();
+								break;
+							}
+						}
+					}
+				}
+
+				unset($exceptions, $exception_counters);
+			}
+
+			# Unset variant-type classes
+			if (!empty($_product_options)) {
+				foreach ($_product_options as $cid => $oid)
+					if (isset($classes[$cid]))
+						unset($classes[$cid]);
+
+				if (func_check_product_options($productid, $_product_options))
+					return $_product_options;
+			}
+		}
+	}
+
+	# Get class options
+	$options = $db->all("SELECT groupid, optionid FROM options WHERE groupid IN ('".implode("','", array_keys($groups))."') AND enabled=1 ORDER BY orderby");
+	if (empty($options))
+		return false;
+
+	$tmp = array();
+	foreach ($options as $k=>$v) {
+		$tmp[$v['groupid']][] = $v['optionid'];
+	}
+
+	$options = $tmp;
+	$_flag = false;
+	foreach ($groups as $k => $class) {
+		if ($class['view_type'] == 't' || $class['view_type'] == 'i') {
+			$_product_options[$k] = '';
+			unset($groups[$k]);
+			continue;
+		}
+
+		$groups[$k]['cnt'] = $_flag ? 0 : -1;
+		$_flag = true;
+		if (isset($options[$k]))
+			$groups[$k]['options'] = array_values($options[$k]);
+		else
+			unset($groups[$k]);
+	}
+
+	if (empty($groups)) {
+		if (empty($_product_options))
+			return false;
+
+		uksort($_product_options, "func_get_default_options_callback");
+		return $_product_options;
+	}
+
+	while(!$is_add) {
+		$product_options = $_product_options;
+		$is_add = true;
+		foreach ($groups as $k=>$g) {
+			if ($is_add) {
+				if (count($g['options'])-1 <= $g['cnt'])
+					$g['cnt'] = 0;
+				else {
+					$is_add = false;
+					$g['cnt']++;
+				}
+			}
+
+			$product_options[$k] = $g['options'][$g['cnt']];
+			$groups[$k]['cnt'] = $g['cnt'];
+		}
+
+		if (func_check_product_options($productid, $product_options)) {
+			$variantid = func_get_variantid($product_options, $productid);
+
+            # Check variant quantity in stock
+            if (
+				empty($variantid) ||
+                ($config["General"]["unlimited_products"] == "Y") ||
+                $db->field("SELECT avail FROM variants WHERE variantid='".$variantid."'") >= $amount
+            )
+                break;
+		}
+	}
+
+	if (empty($product_options))
+		return false;
+
+	uksort($product_options, "func_get_default_options_callback");
+	return $product_options;
 }
 
-/**
- * Get product categories
- */
-function spacart_get_product_categories($productId)
-{
-    global $db;
-    $cats = array();
-    $sql = "SELECT c.rowid, c.label, c.description";
-    $sql .= " FROM ".MAIN_DB_PREFIX."categorie c";
-    $sql .= " INNER JOIN ".MAIN_DB_PREFIX."categorie_product cp ON cp.fk_categorie = c.rowid";
-    $sql .= " WHERE cp.fk_product = ".(int) $productId;
-    $sql .= " AND c.type = 0 AND c.visible = 1";
+function func_get_default_options_callback($a, $b) {
+	global $_orderby;
 
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $cats[] = $obj;
-        }
-    }
-    return $cats;
+	$a = $_orderby[$a];
+	$b = $_orderby[$b];
+	if ($a == $b)
+		return 0;
+
+	return $a > $b ? 1 : -1;
 }
 
-/**
- * Get product variants
- */
-function spacart_get_product_variants($productId)
-{
-    global $db;
-    $variants = array();
+function func_check_product_options($productid, $options) {
+	global $db;
 
-    $sql = "SELECT v.rowid, v.label, v.sku, v.price, v.weight, v.stock, v.active,";
-    $sql .= " v.position, v.fk_product";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_variant v";
-    $sql .= " WHERE v.fk_product = ".(int) $productId;
-    $sql .= " AND v.active = 1";
-    $sql .= " ORDER BY v.position ASC";
+	if (empty($options) || !is_array($options))
+		return false;
 
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            // Get variant items/values
-            $obj->items = array();
-            $sqlItems = "SELECT vi.rowid, vi.attribute_name, vi.attribute_value";
-            $sqlItems .= " FROM ".MAIN_DB_PREFIX."spacart_variant_item vi";
-            $sqlItems .= " WHERE vi.fk_variant = ".(int) $obj->rowid;
-            $resItems = $db->query($sqlItems);
-            if ($resItems) {
-                while ($item = $db->fetch_object($resItems)) {
-                    $obj->items[] = $item;
-                }
-            }
-            $variants[] = $obj;
-        }
-    }
-    return $variants;
+	$ids = array_map("intval", array_keys($options));
+	$ids = array_map("addslashes", $ids);
+	$textids = $db->column("SELECT groupid FROM option_groups WHERE groupid IN ('".implode("','", $ids)."') AND view_type IN ('t', 'i')", "groupid");
+	$where = array();
+	$oids = array();
+	foreach ($options as $gid=>$oid) {
+		$gid = intval($gid);
+		if (empty($gid))
+			return false;
+
+		$oid = addslashes($oid);
+		if (!is_numeric($oid) || empty($oid))
+			$where[] = "g.groupid='".$gid."' AND o.optionid IS NULL AND g.view_type IN ('t', 'i')";
+		else {
+			$where[] = "g.groupid='".$gid."' AND (o.optionid='".$oid."' OR (o.optionid IS NULL AND g.view_type IN ('t', 'i')))";
+			if (empty($textids) || !in_array($gid, $textids))
+				$oids[] = $oid;
+		}
+	}
+
+	$groups = $db->all("SELECT g.groupid, g.view_type FROM option_groups g LEFT JOIN options o ON g.groupid=o.groupid AND o.enabled=1 WHERE g.enabled=1 AND g.productid='".$productid."' AND ((".implode(") OR (", $where).")) GROUP BY g.groupid");
+	if (count($groups) != count($options))
+		return false;
+
+	$counter = $db->field("SELECT COUNT(DISTINCT g.groupid) FROM option_groups g, options o WHERE g.productid='".$productid."' AND g.enabled=1 AND g.groupid=o.groupid AND o.enabled=1");
+	$oids_counter = count($oids);
+	$oids = implode("','", $oids);
+	if ($counter == $oids_counter)
+		return !$db->field("SELECT COUNT(*) as cnt_orig, SUM(IF(e2.optionid IS NULL, 0, 1)) as cnt_ex FROM options_ex e1 LEFT JOIN options_ex e2 ON e1.optionid = e2.optionid AND e2.optionid IN ('".$oids."') GROUP BY e1.exceptionid HAVING cnt_orig = cnt_ex");
+	else {
+		$exceptions = $db->all("SELECT exceptionid, COUNT(optionid) FROM options_ex WHERE optionid IN ('".$oids."') GROUP BY exceptionid");
+		if (empty($exceptions))
+			return true;
+
+		$ids = array();
+		foreach ($exceptions as $v)
+			$ids[] = $v['exceptionid'];
+
+		$tmp = $db->all("SELECT exceptionid, COUNT(optionid) as cnt FROM options_ex WHERE exceptionid IN ('".implode("','", array_keys($exceptions))."') GROUP BY exceptionid");
+		$exception_counters = array();
+		foreach ($tmp as $v)
+			$exception_counters[$v['exceptionid']] = $v['cnt'];
+
+		foreach ($exceptions as $eid=>$cnt)
+			if ($exception_counters[$eid] == $cnt)
+				return false;
+
+		# Check partly options data
+		$exceptions = $db->hash("SELECT o.groupid, COUNT(e.exceptionid) FROM options_ex e, options o, option_groups g WHERE e.optionid=o.optionid AND e.exceptionid IN ('".implode("','", array_keys($exceptions))."') AND e.optionid NOT IN ('".$oids."') AND o.enabled=1 AND g.enabled=1 AND o.groupid=g.groupid GROUP BY o.groupid", "groupid", false, true);
+		if (empty($exceptions))
+			return true;
+
+		$class_counters = $db->hash("SELECT groupid, COUNT(*) FROM options WHERE groupid IN ('".implode("','", array_keys($exceptions))."') AND avail = 'Y' GROUP BY groupid", "groupid", false, true);
+		foreach ($exceptions as $gid => $cnt)
+			if (isset($class_counters[$gid]) && $class_counters[$gid] == $cnt)
+				return false;
+
+		return true;
+	}
 }
 
-/**
- * Get product options (option groups + options)
- */
-function spacart_get_product_options($productId)
-{
-    global $db;
-    $groups = array();
+function func_process_sku($sku, $productid = 0, $variantid = 0) {
+	global $db, $_SESSION;
 
-    $sql = "SELECT og.rowid, og.label, og.type, og.required, og.position";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_option_group og";
-    $sql .= " WHERE og.fk_product = ".(int) $productId;
-    $sql .= " AND og.active = 1";
-    $sql .= " ORDER BY og.position ASC";
+	if (is_numeric($sku)) {
+		$old_sku = $sku;
+		$was_numeric = '1';
+		if ($productid)
+			$sku = 'SKU'.$productid;
+		else
+			$sku = 'SKU'.$variantid.'v';
+	}
 
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($grp = $db->fetch_object($resql)) {
-            $grp->options = array();
-            $sqlOpt = "SELECT o.rowid, o.label, o.price_modifier, o.price_modifier_type,";
-            $sqlOpt .= " o.weight_modifier, o.position";
-            $sqlOpt .= " FROM ".MAIN_DB_PREFIX."spacart_option o";
-            $sqlOpt .= " WHERE o.fk_option_group = ".(int) $grp->rowid;
-            $sqlOpt .= " AND o.active = 1";
-            $sqlOpt .= " ORDER BY o.position ASC";
-            $resOpt = $db->query($sqlOpt);
-            if ($resOpt) {
-                while ($opt = $db->fetch_object($resOpt)) {
-                    $grp->options[] = $opt;
-                }
-            }
-            $groups[] = $grp;
-        }
-    }
-    return $groups;
-}
+	$sku_exists = $db->field("SELECT productid FROM products WHERE sku='".addslashes($sku)."' AND productid<>'$productid'");
+	if (!$sku_exists) {
+		$sku_exists = $db->field("SELECT variantid FROM variants WHERE sku='".addslashes($sku)."' AND variantid<>'$variantid'");
+		$variantid = $variantid;
+	}
 
-/**
- * Get product reviews
- */
-function spacart_get_product_reviews($productId, $limit = 20)
-{
-    global $db;
-    $reviews = array();
+	if ($sku_exists) {
+		if (!$was_numeric) {
+			$old_sku = $sku;
+			if ($variantid)
+				$sku = 'SKU'.$variantid.'v';
+			else
+				$sku = 'SKU'.$productid;
+		}
 
-    $sql = "SELECT r.rowid, r.fk_product, r.fk_customer, r.customer_name,";
-    $sql .= " r.rating, r.title, r.comment, r.status, r.date_creation";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_review r";
-    $sql .= " WHERE r.fk_product = ".(int) $productId;
-    $sql .= " AND r.status = 1";
-    $sql .= " ORDER BY r.date_creation DESC";
-    $sql .= " LIMIT ".(int) $limit;
+		$sku_exists = $db->field("SELECT productid FROM products WHERE sku='".addslashes($sku)."' AND productid<>'$productid'");
+		if (!$sku_exists)
+			$sku_exists = $db->field("SELECT variantid FROM variants WHERE sku='".addslashes($sku)."' AND variantid<>'$variantid'");
 
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $reviews[] = $obj;
-        }
-    }
-    return $reviews;
-}
+		if ($sku_exists) {
+			$sku .= time();
+		}
 
-/**
- * Get average rating for a product
- */
-function spacart_get_product_avg_rating($productId)
-{
-    global $db;
-    $sql = "SELECT AVG(rating) as avg_rating FROM ".MAIN_DB_PREFIX."spacart_review";
-    $sql .= " WHERE fk_product = ".(int) $productId." AND status = 1";
-    $resql = $db->query($sql);
-    if ($resql) {
-        $obj = $db->fetch_object($resql);
-        return round((float) $obj->avg_rating, 1);
-    }
-    return 0;
-}
+		if ($was_numeric)
+			$_SESSION['alerts'][] = array(
+				'type'		=> 'e',
+				'content'	=> 'SKU <b>'.$old_sku.'</b> cannot be numeric and changed to <b>'.$sku.'</b>'
+			);
+		else
+			$_SESSION['alerts'][] = array(
+				'type'		=> 'e',
+				'content'	=> 'SKU <b>'.$old_sku.'</b> exists and changed to <b>'.$sku.'</b>'
+			);
+	}
 
-/**
- * Get related products
- */
-function spacart_get_related_products($productId, $limit = 4)
-{
-    global $db;
-    $products = array();
-
-    // First try explicit relations
-    $sql = "SELECT p.rowid, p.ref, p.label, p.price, p.price_ttc, p.stock_reel, p.datec";
-    $sql .= " FROM ".MAIN_DB_PREFIX."product p";
-    $sql .= " INNER JOIN ".MAIN_DB_PREFIX."spacart_related sr ON sr.fk_product_related = p.rowid";
-    $sql .= " WHERE sr.fk_product = ".(int) $productId;
-    $sql .= " AND p.tosell = 1";
-    $sql .= " ORDER BY sr.position ASC";
-    $sql .= " LIMIT ".(int) $limit;
-
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $obj->photo_url = spacart_product_photo_url($obj->rowid, $obj->ref);
-            $products[] = $obj;
-        }
-    }
-
-    // If not enough, fill with same category products
-    if (count($products) < $limit) {
-        $excludeIds = array((int) $productId);
-        foreach ($products as $p) {
-            $excludeIds[] = (int) $p->rowid;
-        }
-        $remaining = $limit - count($products);
-
-        $sql2 = "SELECT DISTINCT p.rowid, p.ref, p.label, p.price, p.price_ttc, p.stock_reel, p.datec";
-        $sql2 .= " FROM ".MAIN_DB_PREFIX."product p";
-        $sql2 .= " INNER JOIN ".MAIN_DB_PREFIX."categorie_product cp ON cp.fk_product = p.rowid";
-        $sql2 .= " WHERE cp.fk_categorie IN (";
-        $sql2 .= "   SELECT fk_categorie FROM ".MAIN_DB_PREFIX."categorie_product WHERE fk_product = ".(int) $productId;
-        $sql2 .= " )";
-        $sql2 .= " AND p.rowid NOT IN (".implode(',', $excludeIds).")";
-        $sql2 .= " AND p.tosell = 1";
-        $sql2 .= " ORDER BY RAND()";
-        $sql2 .= " LIMIT ".(int) $remaining;
-
-        $resql2 = $db->query($sql2);
-        if ($resql2) {
-            while ($obj = $db->fetch_object($resql2)) {
-                $obj->photo_url = spacart_product_photo_url($obj->rowid, $obj->ref);
-                $products[] = $obj;
-            }
-        }
-    }
-
-    return $products;
-}
-
-/**
- * Get wholesale/tiered prices
- */
-function spacart_get_wholesale_prices($productId)
-{
-    global $db;
-    $prices = array();
-
-    $sql = "SELECT wp.rowid, wp.fk_product, wp.fk_variant, wp.min_qty, wp.price,";
-    $sql .= " wp.membership_type";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_wholesale_price wp";
-    $sql .= " WHERE wp.fk_product = ".(int) $productId;
-    $sql .= " AND wp.active = 1";
-    $sql .= " ORDER BY wp.min_qty ASC";
-
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $prices[] = $obj;
-        }
-    }
-    return $prices;
-}
-
-/**
- * Increment product view counter
- */
-function spacart_increment_product_views($productId)
-{
-    global $db;
-    // Use Dolibarr's nb_views field if available or a separate tracker
-    $sql = "UPDATE ".MAIN_DB_PREFIX."product SET nb_views = COALESCE(nb_views, 0) + 1";
-    $sql .= " WHERE rowid = ".(int) $productId;
-    $db->query($sql);
-}
-
-/**
- * Get featured products
- */
-function spacart_get_featured_products($limit = 8)
-{
-    return spacart_get_products(array('featured' => true), 'date_desc', 1, $limit);
-}
-
-/**
- * Get new products (last 30 days)
- */
-function spacart_get_new_products($limit = 8)
-{
-    global $db;
-    $products = array();
-
-    $sql = "SELECT p.rowid, p.ref, p.label, p.price, p.price_ttc, p.stock_reel, p.datec";
-    $sql .= " FROM ".MAIN_DB_PREFIX."product p";
-    $sql .= " WHERE p.tosell = 1 AND p.fk_product_type = 0";
-    $sql .= " AND p.entity IN (".getEntity('product').")";
-    $sql .= " AND p.datec >= '".date('Y-m-d', strtotime('-30 days'))."'";
-    $sql .= " ORDER BY p.datec DESC";
-    $sql .= " LIMIT ".(int) $limit;
-
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $obj->photo_url = spacart_product_photo_url($obj->rowid, $obj->ref);
-            $obj->is_new = true;
-            $products[] = $obj;
-        }
-    }
-    return $products;
-}
-
-/**
- * Get best selling products
- */
-function spacart_get_bestsellers($limit = 8)
-{
-    global $db;
-    $products = array();
-
-    $sql = "SELECT p.rowid, p.ref, p.label, p.price, p.price_ttc, p.stock_reel, p.datec,";
-    $sql .= " SUM(cd.qty) as sold_count";
-    $sql .= " FROM ".MAIN_DB_PREFIX."product p";
-    $sql .= " INNER JOIN ".MAIN_DB_PREFIX."commandedet cd ON cd.fk_product = p.rowid";
-    $sql .= " INNER JOIN ".MAIN_DB_PREFIX."commande c ON c.rowid = cd.fk_commande AND c.fk_statut >= 1";
-    $sql .= " WHERE p.tosell = 1 AND p.fk_product_type = 0";
-    $sql .= " AND p.entity IN (".getEntity('product').")";
-    $sql .= " GROUP BY p.rowid";
-    $sql .= " ORDER BY sold_count DESC";
-    $sql .= " LIMIT ".(int) $limit;
-
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $obj->photo_url = spacart_product_photo_url($obj->rowid, $obj->ref);
-            $products[] = $obj;
-        }
-    }
-    return $products;
-}
-
-/**
- * Get most viewed products
- */
-function spacart_get_most_viewed($limit = 8)
-{
-    global $db;
-    $products = array();
-
-    $sql = "SELECT p.rowid, p.ref, p.label, p.price, p.price_ttc, p.stock_reel, p.datec";
-    $sql .= " FROM ".MAIN_DB_PREFIX."product p";
-    $sql .= " WHERE p.tosell = 1 AND p.fk_product_type = 0";
-    $sql .= " AND p.entity IN (".getEntity('product').")";
-    $sql .= " AND COALESCE(p.nb_views, 0) > 0";
-    $sql .= " ORDER BY p.nb_views DESC";
-    $sql .= " LIMIT ".(int) $limit;
-
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $obj->photo_url = spacart_product_photo_url($obj->rowid, $obj->ref);
-            $products[] = $obj;
-        }
-    }
-    return $products;
-}
-
-/**
- * Get recently viewed products (from session)
- */
-function spacart_get_recently_viewed($limit = 4)
-{
-    if (empty($_SESSION['spacart_viewed'])) return array();
-
-    global $db;
-    $ids = array_slice(array_reverse($_SESSION['spacart_viewed']), 0, $limit);
-    $products = array();
-
-    if (empty($ids)) return $products;
-
-    $sql = "SELECT p.rowid, p.ref, p.label, p.price, p.price_ttc, p.stock_reel";
-    $sql .= " FROM ".MAIN_DB_PREFIX."product p";
-    $sql .= " WHERE p.rowid IN (".implode(',', array_map('intval', $ids)).")";
-    $sql .= " AND p.tosell = 1";
-
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $obj->photo_url = spacart_product_photo_url($obj->rowid, $obj->ref);
-            $products[] = $obj;
-        }
-    }
-    return $products;
-}
-
-/**
- * Track viewed product in session
- */
-function spacart_track_product_view($productId)
-{
-    if (!isset($_SESSION['spacart_viewed'])) {
-        $_SESSION['spacart_viewed'] = array();
-    }
-
-    // Remove if already in list
-    $key = array_search((int) $productId, $_SESSION['spacart_viewed']);
-    if ($key !== false) {
-        unset($_SESSION['spacart_viewed'][$key]);
-    }
-
-    // Add to end
-    $_SESSION['spacart_viewed'][] = (int) $productId;
-
-    // Keep only last 20
-    if (count($_SESSION['spacart_viewed']) > 20) {
-        $_SESSION['spacart_viewed'] = array_slice($_SESSION['spacart_viewed'], -20);
-    }
-}
-
-/**
- * Check if product is in wishlist
- */
-function spacart_is_in_wishlist($productId, $customerId)
-{
-    if (!$customerId) return false;
-
-    global $db;
-    $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."spacart_wishlist";
-    $sql .= " WHERE fk_product = ".(int) $productId;
-    $sql .= " AND fk_customer = ".(int) $customerId;
-    $resql = $db->query($sql);
-    return ($resql && $db->num_rows($resql) > 0);
+	return $sku;
 }

@@ -1,354 +1,266 @@
-<!-- Checkout Page - 3 Steps -->
+<div class="checkout-container">
+<h1><a href="{$current_location}/cart" class="cart-link back-to-cart"><img src="/images/back_arrow.png" alt="" /></a>{lng[Checkout]}</h1>
 
-<form id="spacart-checkout-form">
+<div align="left">
+<table width="100%" cellspacing="0" class="checkout_products">
+{foreach $products as $v}
+{php $url = $v['cleanurl'] ? $v['cleanurl'].'.html' : 'product/'.$v['productid'];}
+	<tr>
+	 <td class="image"><a href="{$current_location}/{$url}">
+{if $v['variant_photo']}
+<?php
+		$image = $v['variant_photo'];
+		$image['new_width'] = 100;
+		$image['new_height'] = 100;
+		include SITE_ROOT . '/includes/variant_image.php';
+?>
+{elseif $v['photo']}
+<?php
+		$image = $v['photo'];
+		$image['new_width'] = 100;
+		$image['new_height'] = 100;
+		include SITE_ROOT . '/includes/image.php';
+?>
+{/if}
 
-<!-- Steps Indicator -->
-<ul class="spacart-checkout-steps">
-    <li class="spacart-checkout-step active">
-        <span class="step-number">1</span> Identification
-    </li>
-    <span class="spacart-checkout-step-separator"></span>
-    <li class="spacart-checkout-step">
-        <span class="step-number">2</span> Livraison
-    </li>
-    <span class="spacart-checkout-step-separator"></span>
-    <li class="spacart-checkout-step">
-        <span class="step-number">3</span> Paiement
-    </li>
-</ul>
+	  </a></td>
+	  <td width="100%" class="line" align="left">
+{if $v['gift_card']}
+<b>Gift Card</b>
+{else}
+<a href="{$current_location}/{$url}">{$v['name']}</a>
+{/if}
+{if $v['weight'] && $v['weight'] != '0.00'}
+<br />
+<small>{lng[Weight]}: {weight $v['weight']}</small>
+{/if}
+{if $v['product_options']}
+<hr />
+<b>{lng[Selected options]}:</b><br />
+<table width="100%">
+{foreach $v['product_options'] as $o}
+<tr>
+	<td valign="top" width="100">{if $o['fullname']}{$o['fullname']}{else}{$o['name']}{/if}:</td>
+	<td>{$o['option']['name']}</td>
+</tr>
+{/foreach}
+</table>
+{/if}
+ </td>
+ <td class="line" nowrap align="right">
+{if $v['gift_card']}
+{price $v['amount']}
+{else}
+{price $v['price']} x {$v['quantity']} = {php $product_subtotal = $v['price'] * $v['quantity'];}{price $product_subtotal}
+{/if}
+ </td>
+</tr>
+{/foreach}
+</table>
 
-<div class="row">
-    <!-- Main Content -->
-    <div class="col l8 m12 s12">
-
-        <!-- Step 1: Identification -->
-        <div class="spacart-checkout-panel active" id="checkout-step-1">
-            <div class="card-panel">
-                <h5>Identification</h5>
-
-                <?php if ($is_logged_in && $customer) { ?>
-                    <p>Connecté en tant que <strong><?php echo htmlspecialchars($customer->firstname.' '.$customer->lastname); ?></strong> (<?php echo htmlspecialchars($customer->email); ?>)</p>
-                    <input type="hidden" name="email" value="<?php echo htmlspecialchars($customer->email); ?>">
-                    <input type="hidden" name="customer_id" value="<?php echo $customer->rowid; ?>">
-                <?php } else { ?>
-                    <div style="margin-bottom:15px;">
-                        <a href="#!" id="spacart-checkout-guest" class="btn btn-small">Commander en invité</a>
-                        <a href="#!" id="spacart-checkout-login" class="btn btn-small btn-flat">J'ai un compte</a>
-                    </div>
-
-                    <!-- Guest form -->
-                    <div id="spacart-checkout-guest-form">
-                        <div class="row" style="margin-bottom:0;">
-                            <div class="input-field col s6">
-                                <input type="text" name="firstname" id="co-firstname" required>
-                                <label for="co-firstname">Prénom *</label>
-                            </div>
-                            <div class="input-field col s6">
-                                <input type="text" name="lastname" id="co-lastname" required>
-                                <label for="co-lastname">Nom *</label>
-                            </div>
-                        </div>
-                        <div class="input-field">
-                            <input type="email" name="email" id="co-email" required>
-                            <label for="co-email">Email *</label>
-                        </div>
-                        <div class="input-field">
-                            <input type="tel" name="phone" id="co-phone">
-                            <label for="co-phone">Téléphone</label>
-                        </div>
-                    </div>
-
-                    <!-- Login form -->
-                    <div id="spacart-checkout-login-form" style="display:none;">
-                        <div class="input-field">
-                            <input type="email" name="login_email" id="co-login-email">
-                            <label for="co-login-email">Email</label>
-                        </div>
-                        <div class="input-field">
-                            <input type="password" name="login_password" id="co-login-password">
-                            <label for="co-login-password">Mot de passe</label>
-                        </div>
-                        <a href="#!" class="btn btn-small" onclick="SpaCart.util.ajax({url:SpaCartConfig.apiUrl+'/customer/login',method:'POST',data:{email:document.getElementById('co-login-email').value,password:document.getElementById('co-login-password').value,token:SpaCartConfig.sessionToken},success:function(r){if(r.success)window.location.reload();else SpaCart.util.toast(r.message,'error');}});">Se connecter</a>
-                    </div>
-                <?php } ?>
-
-                <div class="right-align" style="margin-top:20px;">
-                    <a href="#!" class="btn spacart-checkout-next">
-                        Continuer <i class="material-icons right">arrow_forward</i>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 2: Shipping Address & Method -->
-        <div class="spacart-checkout-panel" id="checkout-step-2">
-            <div class="card-panel">
-                <h5>Adresse de livraison</h5>
-
-                <?php if (!empty($addresses)) { ?>
-                <div style="margin-bottom:15px;">
-                    <p>Utiliser une adresse existante :</p>
-                    <?php foreach ($addresses as $addr) { if ($addr->type === 'shipping') { ?>
-                    <label>
-                        <input type="radio" name="use_address" value="<?php echo $addr->rowid; ?>" class="with-gap"
-                               data-fn="<?php echo htmlspecialchars($addr->firstname); ?>"
-                               data-ln="<?php echo htmlspecialchars($addr->lastname); ?>"
-                               data-addr="<?php echo htmlspecialchars($addr->address); ?>"
-                               data-zip="<?php echo htmlspecialchars($addr->zip); ?>"
-                               data-city="<?php echo htmlspecialchars($addr->city); ?>"
-                               data-country="<?php echo $addr->fk_country; ?>"
-                               data-phone="<?php echo htmlspecialchars($addr->phone); ?>"
-                               <?php echo $addr->is_default ? 'checked' : ''; ?>>
-                        <span><?php echo htmlspecialchars($addr->firstname.' '.$addr->lastname.', '.$addr->address.', '.$addr->zip.' '.$addr->city); ?></span>
-                    </label><br>
-                    <?php } } ?>
-                    <label>
-                        <input type="radio" name="use_address" value="new" class="with-gap">
-                        <span>Nouvelle adresse</span>
-                    </label>
-                </div>
-                <?php } ?>
-
-                <div id="spacart-new-shipping-address">
-                    <div class="row" style="margin-bottom:0;">
-                        <div class="input-field col s6">
-                            <input type="text" name="shipping_firstname" id="co-ship-fn" required>
-                            <label for="co-ship-fn">Prénom *</label>
-                        </div>
-                        <div class="input-field col s6">
-                            <input type="text" name="shipping_lastname" id="co-ship-ln" required>
-                            <label for="co-ship-ln">Nom *</label>
-                        </div>
-                    </div>
-                    <div class="input-field">
-                        <input type="text" name="shipping_address" id="co-ship-addr" required>
-                        <label for="co-ship-addr">Adresse *</label>
-                    </div>
-                    <div class="row" style="margin-bottom:0;">
-                        <div class="input-field col s4">
-                            <input type="text" name="shipping_zip" id="co-ship-zip" required>
-                            <label for="co-ship-zip">Code postal *</label>
-                        </div>
-                        <div class="input-field col s8">
-                            <input type="text" name="shipping_city" id="co-ship-city" required>
-                            <label for="co-ship-city">Ville *</label>
-                        </div>
-                    </div>
-                    <div class="input-field">
-                        <select name="shipping_country" class="browser-default">
-                            <?php foreach ($countries as $c) { ?>
-                                <option value="<?php echo $c->rowid; ?>" <?php echo $c->code === 'FR' ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($c->label); ?>
-                                </option>
-                            <?php } ?>
-                        </select>
-                    </div>
-                    <div class="input-field">
-                        <input type="tel" name="shipping_phone" id="co-ship-phone">
-                        <label for="co-ship-phone">Téléphone</label>
-                    </div>
-                </div>
-
-                <!-- Same billing address? -->
-                <p style="margin-top:15px;">
-                    <label>
-                        <input type="checkbox" name="same_billing" id="spacart-same-billing" class="filled-in" checked>
-                        <span>Adresse de facturation identique</span>
-                    </label>
-                </p>
-
-                <!-- Billing address (hidden by default) -->
-                <div id="spacart-billing-address-form" style="display:none;margin-top:15px;">
-                    <h6>Adresse de facturation</h6>
-                    <div class="row" style="margin-bottom:0;">
-                        <div class="input-field col s6">
-                            <input type="text" name="billing_firstname" id="co-bill-fn">
-                            <label for="co-bill-fn">Prénom</label>
-                        </div>
-                        <div class="input-field col s6">
-                            <input type="text" name="billing_lastname" id="co-bill-ln">
-                            <label for="co-bill-ln">Nom</label>
-                        </div>
-                    </div>
-                    <div class="input-field">
-                        <input type="text" name="billing_address" id="co-bill-addr">
-                        <label for="co-bill-addr">Adresse</label>
-                    </div>
-                    <div class="row" style="margin-bottom:0;">
-                        <div class="input-field col s4">
-                            <input type="text" name="billing_zip" id="co-bill-zip">
-                            <label for="co-bill-zip">Code postal</label>
-                        </div>
-                        <div class="input-field col s8">
-                            <input type="text" name="billing_city" id="co-bill-city">
-                            <label for="co-bill-city">Ville</label>
-                        </div>
-                    </div>
-                    <div class="input-field">
-                        <select name="billing_country" class="browser-default">
-                            <?php foreach ($countries as $c) { ?>
-                                <option value="<?php echo $c->rowid; ?>" <?php echo $c->code === 'FR' ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($c->label); ?>
-                                </option>
-                            <?php } ?>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="divider" style="margin:20px 0;"></div>
-
-                <!-- Shipping methods -->
-                <h6>Méthode de livraison</h6>
-                <?php if (!empty($shipping_methods)) { ?>
-                    <?php foreach ($shipping_methods as $idx => $method) { ?>
-                    <p>
-                        <label>
-                            <input type="radio" name="shipping_method" value="<?php echo $method->rowid; ?>"
-                                   class="with-gap" <?php echo $idx === 0 ? 'checked' : ''; ?>
-                                   data-cost="<?php echo $method->cost; ?>">
-                            <span>
-                                <strong><?php echo htmlspecialchars($method->label); ?></strong>
-                                <?php if ($method->delivery_time) { ?>
-                                    <small class="grey-text">(<?php echo htmlspecialchars($method->delivery_time); ?>)</small>
-                                <?php } ?>
-                                -
-                                <?php if ($method->is_free) { ?>
-                                    <span style="color:#4caf50;font-weight:700;">Gratuit</span>
-                                <?php } else { ?>
-                                    <strong><?php echo spacartFormatPrice($method->cost); ?></strong>
-                                <?php } ?>
-                            </span>
-                        </label>
-                    </p>
-                    <?php } ?>
-                <?php } else { ?>
-                    <p class="grey-text">Aucune méthode de livraison disponible</p>
-                <?php } ?>
-
-                <div style="display:flex;justify-content:space-between;margin-top:20px;">
-                    <a href="#!" class="btn btn-flat spacart-checkout-prev">
-                        <i class="material-icons left">arrow_back</i> Retour
-                    </a>
-                    <a href="#!" class="btn spacart-checkout-next">
-                        Continuer <i class="material-icons right">arrow_forward</i>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 3: Payment -->
-        <div class="spacart-checkout-panel" id="checkout-step-3">
-            <div class="card-panel">
-                <h5>Paiement</h5>
-
-                <!-- Payment methods -->
-                <div style="margin-bottom:20px;">
-                    <?php if (!empty($stripe_enabled) && !empty($stripe_pk)) { ?>
-                    <p>
-                        <label>
-                            <input type="radio" name="payment_method" value="stripe" class="with-gap" checked>
-                            <span><strong>Carte bancaire</strong> <i class="material-icons tiny">credit_card</i></span>
-                        </label>
-                    </p>
-                    <?php } ?>
-
-                    <?php if (!empty($paypal_enabled)) { ?>
-                    <p>
-                        <label>
-                            <input type="radio" name="payment_method" value="paypal" class="with-gap" <?php echo empty($stripe_enabled) ? 'checked' : ''; ?>>
-                            <span><strong>PayPal</strong></span>
-                        </label>
-                    </p>
-                    <?php } ?>
-
-                    <p>
-                        <label>
-                            <input type="radio" name="payment_method" value="bank_transfer" class="with-gap" <?php echo empty($stripe_enabled) && empty($paypal_enabled) ? 'checked' : ''; ?>>
-                            <span><strong>Virement bancaire</strong></span>
-                        </label>
-                    </p>
-
-                    <p>
-                        <label>
-                            <input type="radio" name="payment_method" value="cod" class="with-gap">
-                            <span><strong>Paiement à la livraison</strong></span>
-                        </label>
-                    </p>
-                </div>
-
-                <!-- Stripe card element placeholder (uses Dolibarr Stripe SDK) -->
-                <?php if (!empty($stripe_enabled) && !empty($stripe_pk)) { ?>
-                <div id="spacart-stripe-card" style="display:none;padding:15px;border:1px solid #ddd;border-radius:4px;margin-bottom:15px;">
-                    <div id="card-element"></div>
-                    <div id="card-errors" style="color:#ff5252;margin-top:8px;font-size:0.85rem;"></div>
-                </div>
-                <script>
-                    // Pass Dolibarr Stripe publishable key to JS
-                    if (typeof SpaCartConfig !== 'undefined') {
-                        SpaCartConfig.stripePk = '<?php echo $stripe_pk; ?>';
-                    }
-                </script>
-                <?php } ?>
-
-                <!-- Order notes -->
-                <div class="input-field">
-                    <textarea name="order_notes" id="co-notes" class="materialize-textarea"></textarea>
-                    <label for="co-notes">Notes de commande (optionnel)</label>
-                </div>
-
-                <div style="display:flex;justify-content:space-between;margin-top:20px;">
-                    <a href="#!" class="btn btn-flat spacart-checkout-prev">
-                        <i class="material-icons left">arrow_back</i> Retour
-                    </a>
-                    <a href="#!" class="btn btn-large" id="spacart-place-order" style="background:var(--spacart-primary-dark);">
-                        <i class="material-icons left">lock</i> Confirmer la commande
-                    </a>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Order Summary Sidebar -->
-    <div class="col l4 m12 s12">
-        <div class="spacart-checkout-order-summary">
-            <h6 style="margin-top:0;font-weight:600;">Votre commande</h6>
-
-            <?php foreach ($cart->items as $item) { ?>
-            <div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #eee;">
-                <img src="<?php echo spacart_product_photo_url($item->fk_product, $item->ref); ?>" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:3px;margin-right:8px;">
-                <div style="flex:1;min-width:0;">
-                    <span style="font-size:0.85rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                        <?php echo htmlspecialchars($item->label); ?>
-                    </span>
-                    <small class="grey-text">x<?php echo (int) $item->qty; ?></small>
-                </div>
-                <span style="font-size:0.85rem;font-weight:500;"><?php echo spacartFormatPrice($item->price_ht * $item->qty); ?></span>
-            </div>
-            <?php } ?>
-
-            <div style="margin-top:10px;">
-                <div class="spacart-cart-summary-row">
-                    <span>Sous-total</span>
-                    <span><?php echo spacartFormatPrice($cart->subtotal); ?></span>
-                </div>
-                <div class="spacart-cart-summary-row">
-                    <span>Livraison</span>
-                    <span id="spacart-checkout-shipping-cost"><?php echo spacartFormatPrice($cart->shipping_cost); ?></span>
-                </div>
-                <?php if ($cart->coupon_discount > 0) { ?>
-                <div class="spacart-cart-summary-row" style="color:#4caf50;">
-                    <span>Promo</span>
-                    <span>-<?php echo spacartFormatPrice($cart->coupon_discount); ?></span>
-                </div>
-                <?php } ?>
-                <div class="spacart-cart-summary-row total">
-                    <span>Total</span>
-                    <span id="spacart-checkout-total"><?php echo spacartFormatPrice($cart->total); ?></span>
-                </div>
-            </div>
-        </div>
-    </div>
+<br />
+<hr />
+{if !$login}
+<br />
+<div class="checkout-guest-mobile">
+You can checkout as guest. Or <a href="/login">{lng[Login]}</a>, <a href="/register">{lng[Register]}</a>.
 </div>
 
+<div class="checkout-guest">
+You can checkout as guest. Or <a href="/login" onclick="return login_popup();">{lng[Login]}</a>, <a href="/register" onclick="return register_popup();">{lng[Register]}</a>.
+</div>
+{/if}
+<br />
+{php $checkout_reason = func_check_checkout();}
+{if $checkout_reason == 1}
+<table id="checkout_table">
+<tr>
+ <td width="340" id="custom_details">
+<form method="post" action="/checkout/user_form" id="checkout_user_form">
+    <div class="group">
+      <input type="text" name="posted_data[firstname]" required value="{php echo escape($userinfo['firstname'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[First name]}</label>
+    </div>
+
+    <div class="group">
+      <input type="text" name="posted_data[lastname]" required value="{php echo escape($userinfo['lastname'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Last name]}</label>
+    </div>
+    <div class="group">
+      <input type="text" name="posted_data[phone]" required value="{php echo escape($userinfo['phone'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Phone]}</label>
+    </div>
+    <div class="group">
+      <input type="text" name="posted_data[email]" required value="{php echo escape($userinfo['email'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Email]}</label>
+    </div>
+{*
+    <div class="group">
+      <input type="password" name="password" required value="" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Password]}</label>
+    </div>
+*}
+    <div class="group">
+      <input type="text" name="posted_data[address]" required value="{php echo escape($userinfo['address'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Address]}</label>
+    </div>
+
+    <div class="group">
+      <input type="text" name="posted_data[city]" required value="{php echo escape($userinfo['city'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[City]}</label>
+    </div>
+
+<script>
+var states = {ldelim}{rdelim};
+	user_state = "{php echo escape($userinfo['state'], 2);}",
+	user_state_b = "{php echo escape($userinfo['b_state'], 2);}";
+{foreach $countries as $v}
+ {if $v['states']}
+states.{$v['code']} = {states: []};
+  {foreach $v['states'] as $k=>$s}
+states.{$v['code']}.states[{$k}] = {code: "{$s['code']}", state: "{php echo escape($s['state'], 2);}"};
+  {/foreach}
+ {/if}
+{/foreach}
+</script>
+
+    <div class="group group-select">
+<label>{lng[State]}:</label>
+<div>
+{php $found = false;}
+{foreach $countries as $v}
+ {if $v['code'] == $userinfo['country'] && $v['states']}
+  {php $found = true;}
+<select name="posted_data[state]" id="state">
+  {foreach $v['states'] as $s}
+ <option value="{$s['code']}"{if $s['code'] == $userinfo['state']} selected{/if}>{$s['state']}</option>
+   {/foreach}
+</select>
+ {/if}
+{/foreach}
+
+{if !$found}
+<input type="text" name="posted_data[state]" id="state" value="{php echo escape($userinfo['state'], 2);}" />
+{/if}
+</div>
+    </div>
+
+    <div class="group group-select">
+ <label>{lng[Country]}:</label>
+<select name="posted_data[country]" id="country">
+{foreach $countries as $v}
+ <option value="{$v['code']}"{if $v['code'] == $userinfo['country'] || (!$userinfo['country'] && $v['code'] == 'US')} selected{/if}>{$v['country']}</option>
+{/foreach}
+</select>
+    </div>
+
+    <div class="group">
+      <input type="text" name="posted_data[zipcode]" required value="{php echo escape($userinfo['zipcode'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Zip/Postal code]}</label>
+    </div>
+
+<label><input type="checkbox" id="same_address" name="same_address" value="1"{if $userinfo['same_address'] || !$userinfo['firstname']} checked{/if} /> {lng[Billing address is the same]}</label>
+<br /><br />
+<div class="billing_address {if $userinfo['same_address'] || !$userinfo['firstname']} display-none{else} display-block{/if}">
+<h1 class="checkout-h1">{lng[Billing address]}</h1><br />
+    <div class="group">
+      <input type="text" name="posted_data[b_firstname]" required value="{php echo escape($userinfo['b_firstname'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[First name]}</label>
+    </div>
+
+    <div class="group">
+      <input type="text" name="posted_data[b_lastname]" required value="{php echo escape($userinfo['b_lastname'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Last name]}</label>
+    </div>
+    <div class="group">
+      <input type="text" name="posted_data[b_phone]" required value="{php echo escape($userinfo['b_phone'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Phone]}</label>
+    </div>
+    <div class="group">
+      <input type="text" name="posted_data[b_address]" required value="{php echo escape($userinfo['b_address'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Address]}</label>
+    </div>
+
+    <div class="group">
+      <input type="text" name="posted_data[b_city]" required value="{php echo escape($userinfo['b_city'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[City]}</label>
+    </div>
+    <div class="group group-select">
+<label>{lng[State]}:</label>
+<div>
+{php $found = false;}
+{foreach $countries as $v}
+ {if $v['code'] == $userinfo['b_country'] && $v['states']}
+  {php $found = true;}
+<select name="posted_data[b_state]" id="b_state">
+  {foreach $v['states'] as $s}
+ <option value="{$s['code']}"{if $s['code'] == $userinfo['b_state']} selected{/if}>{$s['b_state']}</option>
+   {/foreach}
+</select>
+ {/if}
+{/foreach}
+
+{if !$found}
+<input type="text" name="posted_data[b_state]" id="b_state" value="{php echo escape($userinfo['b_state'], 2);}" />
+{/if}
+</div>
+    </div>
+
+    <div class="group group-select">
+ <label>{lng[Country]}:</label>
+<select name="posted_data[b_country]" id="b_country">
+{foreach $countries as $v}
+ <option value="{$v['code']}"{if $v['code'] == $userinfo['b_country'] || (!$userinfo['b_country'] && $v['code'] == 'US')} selected{/if}>{$v['country']}</option>
+{/foreach}
+</select>
+    </div>
+
+    <div class="group">
+      <input type="text" name="posted_data[b_zipcode]" required value="{php echo escape($userinfo['b_zipcode'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Zip/Postal code]}</label>
+    </div>
+
+</div>
+
+<button>{lng[Continue]}</button>
 </form>
+</div>
+ </td>
+ <td width="260" id="place_order" class="opacity-03">
+{include="checkout/right_part.php"}
+ </td>
+</tr>
+</table>
+{else}
+{lng[Subtotal]}: {price $cart['subtotal']}<br /><br />
+{$checkout_reason}
+{/if}
+</div>

@@ -38,9 +38,10 @@ if (empty($get[0])) {
 
 // Allowed pages (SPA routes)
 $allowed_pages = array(
-	'home', 'product', 'category', 'cart', 'checkout', 'login', 'register',
+	'home', 'products', 'product', 'category', 'cart', 'checkout', 'login', 'register',
 	'profile', 'invoice', 'wishlist', 'search', 'blog', 'news', 'page',
-	'testimonials', 'brands', 'instant_search', 'gift_cards', 'stripe', 'paypal'
+	'testimonials', 'brands', 'instant_search', 'gift_cards', 'stripe', 'paypal',
+	'password', 'help', 'support_desk'
 );
 
 $current_page = $get[0];
@@ -57,10 +58,9 @@ if ($is_ajax) {
 	$breadcrumbs_html = '';
 
 	if (file_exists($page_file)) {
-		ob_start();
 		include $page_file;
-		$page_html = ob_get_clean();
-	} else {
+	}
+	if (empty($page_html)) {
 		$page_html = '<div class="spacart-error"><h2>Page non trouvee</h2></div>';
 	}
 
@@ -93,13 +93,11 @@ $tpl_vars = array(
 
 // Load initial page content
 $page_file = SPACART_PATH.'/pages/'.$current_page.'.php';
-$initial_content = '';
+$page_html = '';
 if (file_exists($page_file)) {
-	ob_start();
 	include $page_file;
-	$initial_content = ob_get_clean();
 }
-$tpl_vars['initial_content'] = $initial_content;
+$tpl_vars['initial_content'] = $page_html;
 $tpl_vars['page_title'] = isset($page_title) ? $page_title : $spacart_config['title'];
 
 // Render full SPA shell

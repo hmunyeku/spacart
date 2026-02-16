@@ -1,0 +1,17 @@
+.translate {
+    cursor: pointer;
+    text-decoration: underline;
+    position: relative;
+    z-index: 11;
+	font-weight: 300;
+}
+.translate-alert textarea {
+	width: 100%;
+	height: 100px;
+}
+.translate .hidden {
+	display: none !important;
+}
+.navigation-admin ul li a.no-ajax {
+	pointer-events: auto;
+}

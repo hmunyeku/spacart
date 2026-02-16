@@ -1,0 +1,43 @@
+.login_error, .register_error {
+	display: none;
+	padding: 5px;
+	color: #cc6600;
+}
+.login_alert {
+	width: 380px;
+	margin-left: -190px;
+	padding: 20px;
+	overflow-x: hidden;
+}
+.login_alert * {
+}
+.login_table {
+	width: 650px;
+}
+.login_table * {
+	text-align: left !important;
+	float: none !important;
+}
+.login_table td {
+	width: 50%;
+}
+.login_table td.login_or {
+	width: 10px;
+	padding: 70px 15px;
+	font-size: 17px;
+}
+table.login-table {
+	width: 300px;
+}
+table.login-table td {
+	padding: 3px;
+	vertical-align: middle !important;
+}
+table.login-table td.name {
+	text-align: right !important;
+	width: 100px;
+	padding-right: 10px;
+}
+table.login-table input {
+	width: 200px;
+}

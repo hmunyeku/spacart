@@ -1,175 +1,136 @@
 <?php
-/**
- * SpaCart - Category functions
- * Read categories from Dolibarr llx_categorie
- */
+function func_cleanurl_exists($cleanurl, $categoryid) {
+	global $db;
 
-/**
- * Get all product categories as flat list
- */
-function spacart_get_categories($parentId = 0)
-{
-    global $db;
-    $categories = array();
+	if ($categoryid)
+		$category_query = " AND categoryid<>".$categoryid;
 
-    $sql = "SELECT c.rowid as id, c.label, c.description, c.fk_parent, c.visible,";
-    $sql .= " c.position, c.color";
-    $sql .= " FROM ".MAIN_DB_PREFIX."categorie c";
-    $sql .= " WHERE c.type = 0"; // Product categories
-    $sql .= " AND c.visible = 1";
-    $sql .= " AND c.entity IN (".getEntity('category').")";
-
-    if ($parentId > 0) {
-        $sql .= " AND c.fk_parent = ".(int) $parentId;
-    }
-
-    $sql .= " ORDER BY c.position ASC, c.label ASC";
-
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $categories[] = array(
-                'id' => (int) $obj->id,
-                'label' => $obj->label,
-                'description' => $obj->description,
-                'fk_parent' => (int) $obj->fk_parent,
-                'visible' => (int) $obj->visible,
-                'position' => (int) $obj->position,
-                'color' => $obj->color,
-                'children' => array()
-            );
-        }
-    }
-    return $categories;
+	return $db->field("SELECT COUNT(categoryid) FROM categories WHERE cleanurl='$cleanurl'".$category_query);
 }
 
-/**
- * Get category tree (hierarchical)
- */
-function spacart_get_category_tree()
-{
-    $all = spacart_get_categories();
-    return spacart_build_category_tree($all, 0);
+function func_recalculate_subcount() {
+	global $db;
+
+	$categories = $db->all("SELECT categoryid FROM categories");
+    foreach ($categories as $k=>$v) {
+    	$subcategories = $db->field("SELECT COUNT(categoryid) FROM categories WHERE parentid='$v[categoryid]'");
+    	$products = $db->field("SELECT COUNT(productid) FROM category_products WHERE categoryid='$v[categoryid]'");
+    	$products_global = $products;
+    	$parents = array($v['categoryid']);
+		while ($parents && $sub = $db->all("SELECT categoryid FROM categories WHERE parentid IN (".implode(',', $parents).")")) {
+			$parents = array();
+			foreach ($sub as $v2) {
+				$parents[] = $v2['categoryid'];
+		    	$products_global += $db->field("SELECT COUNT(productid) FROM category_products WHERE categoryid='$v2[categoryid]'");
+	    	}
+    	}
+
+		// products/subcategories counts are calculated dynamically by the VIEW - no update needed
+   	}
 }
 
-/**
- * Get single category
- */
-function spacart_get_category($id)
-{
-    global $db;
+function func_categories_tree($cat = 0, $orderby = "orderby, title") {
+	global $db, $lng;
 
-    $sql = "SELECT c.rowid as id, c.label, c.description, c.fk_parent, c.visible,";
-    $sql .= " c.position, c.color";
-    $sql .= " FROM ".MAIN_DB_PREFIX."categorie c";
-    $sql .= " WHERE c.rowid = ".(int) $id;
-    $sql .= " AND c.type = 0 AND c.visible = 1";
+	if (ADMIN_AREA)
+		$categories = $db->all("SELECT * FROM categories WHERE parentid='".$cat."' ORDER BY ".$orderby);
+	else
+		$categories = $db->all("SELECT * FROM categories WHERE parentid='".$cat."' AND enabled=1 ORDER BY ".$orderby);
 
-    $resql = $db->query($sql);
-    if ($resql && $db->num_rows($resql)) {
-        return $db->fetch_object($resql);
-    }
-    return null;
+	if (empty($categories))
+		return;
+
+	foreach ($categories as $k=>$v) {
+		$categories[$k]['subcategories'] = func_categories_tree($v['categoryid'], $orderby);
+	}
+
+	return $categories;
 }
 
-/**
- * Get all IDs for a category + its children (recursive)
- */
-function spacart_get_category_ids_recursive($catId)
-{
-    global $db;
-    $ids = array((int) $catId);
+function func_category_ids($cat = 0) {
+	global $db, $lng;
 
-    $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."categorie";
-    $sql .= " WHERE fk_parent = ".(int) $catId;
-    $sql .= " AND type = 0 AND visible = 1";
+	$categories = $db->all("SELECT categoryid FROM categories WHERE parentid='".$cat."'");
+	if (empty($categories))
+		return array();
 
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $childIds = spacart_get_category_ids_recursive((int) $obj->rowid);
-            $ids = array_merge($ids, $childIds);
-        }
-    }
+	$ids = array();
+	foreach ($categories as $k=>$v) {
+		$ids[] = $v['categoryid'];
+		$ids = array_merge(func_category_ids($v['categoryid']), $ids);
+	}
 
-    return array_unique($ids);
+	return $ids;
 }
 
-/**
- * Get category breadcrumb (parent chain)
- */
-function spacart_get_category_breadcrumb($catId)
-{
-    global $db;
-    $chain = array();
+function categories_tree_html($tree, $selected, $depth = 0, $is_new = 0, $empty = 0, $multiple = 0) {
+	global $get;
+	if ($is_new) {
+		if ($multiple)
+			$html = '<select name="categories[]" multiple size="'.$multiple.'">';
+		else
+			$html = '<select name="categoryid">';
 
-    $id = (int) $catId;
-    $maxDepth = 10; // prevent infinite loop
-    $depth = 0;
+		if ($empty && !$multiple)
+			$html .= "<option value=''>".lng('All')."</option>";
+		elseif ($get['1'] == 'category')
+			$html .= "<option value='0'>".lng('Root')."</option>";
+	}
 
-    while ($id > 0 && $depth < $maxDepth) {
-        $sql = "SELECT rowid, label, fk_parent FROM ".MAIN_DB_PREFIX."categorie";
-        $sql .= " WHERE rowid = ".(int) $id;
-        $resql = $db->query($sql);
-        if ($resql && $db->num_rows($resql)) {
-            $obj = $db->fetch_object($resql);
-            array_unshift($chain, array(
-                'id' => (int) $obj->rowid,
-                'label' => $obj->label,
-                'url' => '#/category/'.$obj->rowid
-            ));
-            $id = (int) $obj->fk_parent;
-        } else {
-            break;
-        }
-        $depth++;
-    }
+	if ($tree) {
+		foreach ($tree as $k=>$v) {
+			$html .= '<option value="'.$v['categoryid'].'"'.is_category_selected($v['categoryid'], $selected).'>';
+			for ($i = 0; $i < $depth; $i++)
+				$html .= '- &nbsp; ';
 
-    return $chain;
+			$html .= $v['title'].'</option>';
+			$html .= categories_tree_html($v['subcategories'], $selected, ($depth+1));
+		}
+	}
+
+	if ($is_new)
+		$html .= '</select>';
+
+	return $html;
 }
 
-/**
- * Count products in a category (including subcategories)
- */
-function spacart_count_products_in_category($catId)
-{
-    global $db;
-    $catIds = spacart_get_category_ids_recursive($catId);
+function is_category_selected($cat, $selected) {
+	if (is_array($selected)) {
+		$found = false;
+		foreach ($selected as $v)
+			if ($v == $cat || $v['categoryid'] == $cat) {
+				$found = true;
+				break;
+			}
 
-    $sql = "SELECT COUNT(DISTINCT cp.fk_product) as cnt";
-    $sql .= " FROM ".MAIN_DB_PREFIX."categorie_product cp";
-    $sql .= " INNER JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = cp.fk_product";
-    $sql .= " WHERE cp.fk_categorie IN (".implode(',', array_map('intval', $catIds)).")";
-    $sql .= " AND p.tosell = 1 AND p.fk_product_type = 0";
-
-    $resql = $db->query($sql);
-    if ($resql) {
-        $obj = $db->fetch_object($resql);
-        return (int) $obj->cnt;
-    }
-    return 0;
+		if ($found)
+			return ' selected';
+	} elseif ($cat == $selected)
+		return ' selected';
 }
 
-/**
- * Get subcategories of a category
- */
-function spacart_get_subcategories($parentId)
-{
-    global $db;
-    $subs = array();
+function func_delete_category($cat) {
+	global $db;
 
-    $sql = "SELECT c.rowid as id, c.label, c.description, c.color";
-    $sql .= " FROM ".MAIN_DB_PREFIX."categorie c";
-    $sql .= " WHERE c.fk_parent = ".(int) $parentId;
-    $sql .= " AND c.type = 0 AND c.visible = 1";
-    $sql .= " ORDER BY c.position ASC, c.label ASC";
+	$tree = func_categories_tree($cat);
+	if (!empty($tree)) {
+		foreach ($tree as $v) {
+			func_delete_category($v['categoryid']);
+		}
+	}
 
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $obj->product_count = spacart_count_products_in_category($obj->id);
-            $subs[] = $obj;
-        }
-    }
-    return $subs;
+	$banners = $db->all("SELECT * FROM category_banners WHERE categoryid='$cat'");
+	if (!empty($banners))
+		foreach ($banners as $k=>$v) {
+			unlink(SITE_ROOT.'/photos/banners/'.$cat.'/'.$v['bannerid'].'/'.$v['file']);
+	 	}
+
+	$db->query("DELETE FROM category_banners WHERE categoryid=".$cat);
+	$db->query("DELETE FROM llx_categorie WHERE rowid=".$cat);
+	$db->query("DELETE FROM category_products WHERE categoryid=".$cat);
+	$icon = $db->row("SELECT file FROM category_icons WHERE categoryid=".$cat);
+	if ($icon) {
+		$db->query("DELETE FROM category_icons WHERE categoryid=".$cat);
+		unlink(SITE_ROOT . '/photos/category/'.$cat.'/'.$icon['iconid'].'/'.$icon['file']);
+	}
 }

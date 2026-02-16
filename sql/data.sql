@@ -1,5 +1,46 @@
 -- SpaCart - Initial data
 
+-- Default SPACART configuration constants (inserted if absent)
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_ENABLED', '1', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_TITLE', 'SpaCart Store', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_COMPANY_NAME', 'My Company', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_COMPANY_EMAIL', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_COMPANY_SLOGAN', 'Your online store', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_COMPANY_PHONE', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_COMPANY_FAX', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_COMPANY_ADDRESS', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_CURRENCY', 'EUR', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_CURRENCY_SYMBOL', '€', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_WEIGHT_SYMBOL', 'kg', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_PRODUCTS_PER_PAGE', '12', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_GUEST_CHECKOUT', '1', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_SHOP_CLOSED', '0', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_FREE_SHIPPING_THRESHOLD', '50', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_THEME_COLOR', '#E65100', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_THEME_COLOR_2', '#2e2e2e', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_LOGO_URL', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_FAVICON', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_FOOTER_LOGO_URL', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_FACEBOOK_URL', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_TWITTER_URL', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_INSTAGRAM_URL', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_YOUTUBE_URL', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_SHOW_SERVICES', '0', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_ENABLE_CUSTOMIZER', '1', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_FONT_FAMILY', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_CUSTOM_CSS', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_BORDER_RADIUS_CARD', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_BORDER_RADIUS_BUTTON', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_CONTAINER_WIDTH', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_DEFAULT_LANGUAGE', 'fr_FR', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_RECAPTCHA_SITE_KEY', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_RECAPTCHA_SECRET_KEY', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_TAWKTO_ID', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_ANALYTICS_ID', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_META_TITLE', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_META_DESCRIPTION', '', 'chaine', 1, 0);
+INSERT IGNORE INTO llx_const (name, value, type, entity, visible) VALUES ('SPACART_META_KEYWORDS', '', 'chaine', 1, 0);
+
 -- Default payment methods
 INSERT INTO llx_spacart_payment_method (name, code, description, position, status, entity) VALUES ('Stripe', 'stripe', 'Paiement par carte bancaire via Stripe', 1, 1, 1);
 INSERT INTO llx_spacart_payment_method (name, code, description, position, status, entity) VALUES ('PayPal', 'paypal', 'Paiement via PayPal', 2, 0, 1);

@@ -1,48 +1,52 @@
 <?php
-/**
- * SpaCart - Invoice/Order detail page handler
- */
-
-if (!defined('SPACART_BOOT')) die('Access denied');
-
-require_once SPACART_PATH.'/includes/func/func.order.php';
-require_once SPACART_PATH.'/includes/func/func.user.php';
-
-$orderId = !empty($get[1]) ? (int) $get[1] : 0;
-
-if (!$orderId) {
-    $page_html = '<div class="spacart-empty-state"><i class="material-icons large grey-text">error</i><p>Commande non trouvée</p></div>';
-    $page_title = 'Commande non trouvée';
-    $breadcrumbs_html = '';
-    return;
+session_start();
+q_load('product', 'order');
+if (!$_SESSION['invoices']) {
+	$_SESSION['invoices'] = array();
 }
 
-$fkSoc = 0;
-if ($is_logged_in && $spacart_customer) {
-    $fkSoc = (int) $spacart_customer->fk_soc;
+$found = false;
+if ($userinfo['usertype'] == 'A') {
+	$found = true;
+} elseif (in_array($get['1'], $_SESSION['invoices'])) {
+	$found = true;
+} elseif ($login) {
+	$check_order = $db->row("SELECT * FROM orders WHERE orderid='".addslashes($get['1'])."' AND userid='".$login."'");
+	if ($check_order)
+		$found = true;
+} elseif ($_GET['token']) {
+	$check_order = $db->row("SELECT * FROM orders WHERE orderid='".addslashes($get['1'])."' AND token='".addslashes($_GET['token'])."'");
+	if ($check_order) {
+		$_SESSION['invoices'][] = addslashes($get['1']);
+		redirect('/invoice/'.$get['1']);
+	}
 }
 
-$order = spacart_get_order_detail($orderId, $fkSoc);
+if (!$found) {
+	$_SESSION['alerts'][] = array(
+		'type'		=> 'e',
+		'content'	=> lng('You dont have access to this invoice')
+	);
 
-if (!$order) {
-    $page_html = '<div class="spacart-empty-state"><i class="material-icons large grey-text">error</i><p>Commande non trouvée ou accès non autorisé</p></div>';
-    $page_title = 'Commande non trouvée';
-    $breadcrumbs_html = '';
-    return;
+	redirect('/');
+} elseif ($_GET['token']) {
+	redirect('/invoice/'.$get['1']);
 }
 
-$page_title = 'Commande '.$order->ref.' - '.$spacart_config['title'];
+$orderinfo = func_orderinfo(addslashes($get['1']));
+if ($orderinfo) {
+	$template['order'] = $orderinfo['order'];
+	$template['products'] = $orderinfo['products'];
+} else
+	redirect('/');
 
-$bc_items = array(
-    array('label' => 'Accueil', 'url' => '#/'),
-    array('label' => 'Mon compte', 'url' => '#/profile'),
-    array('label' => 'Commande '.$order->ref, 'url' => '')
-);
-$breadcrumbs_html = spacart_breadcrumbs($bc_items);
+$template['no_left_menu'] = 'Y';
 
-$tpl_vars = array(
-    'order' => $order,
-    'config' => $spacart_config
-);
-
-$page_html = spacart_render(SPACART_TPL_PATH.'/invoice/body.php', $tpl_vars);
+$template['head_title'] = lng('Order #').$get['1'].'. '.$template['head_title'];
+$template['css'][] = 'invoice';
+$template['js'][] = 'invoice';
+if ($get['2'] == 'print') {
+	exit(get_template_contents('invoice/print.php'));
+} else {
+	$template['page'] = get_template_contents('invoice/body.php');
+}

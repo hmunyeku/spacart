@@ -1,35 +1,26 @@
 <?php
-/**
- * SpaCart - CMS Page handler
- */
-if (!defined('SPACART_BOOT')) die('Access denied');
+// Strip .html suffix for backward compatibility with old URL format
+$slug = str_replace('.html', '', $get['1']);
+$safe_slug = $db->mysqli->real_escape_string($slug);
 
-require_once SPACART_PATH.'/includes/func/func.blog.php';
+// First try Dolibarr backoffice table (llx_spacart_page)
+$page = $db->row("SELECT rowid, title, content, meta_title, meta_description, slug, status FROM llx_spacart_page WHERE (rowid = '".intval($get['1'])."' OR slug = '".$safe_slug."') AND status = 1 AND entity = 1");
 
-$slug = !empty($get[1]) ? $get[1] : '';
-
-if (!$slug) {
-    $page_html = '<div class="spacart-empty-state"><i class="material-icons large grey-text">error</i><p>Page non trouvée</p></div>';
-    $page_title = 'Page non trouvée';
-    $breadcrumbs_html = '';
-    return;
+// Fallback to legacy pages table for backward compatibility
+if (!$page) {
+    $page = $db->row("SELECT * FROM pages WHERE pageid='".intval($get['1'])."' OR cleanurl='".$safe_slug."'");
 }
 
-$cmsPage = spacart_get_page_by_slug($slug);
-
-if (!$cmsPage) {
-    $page_html = '<div class="spacart-empty-state"><i class="material-icons large grey-text">error</i><p>Page non trouvée</p></div>';
-    $page_title = 'Page non trouvée';
-    $breadcrumbs_html = '';
-    return;
+if ($page) {
+    $meta = !empty($page['meta_title']) ? $page['meta_title'] : $page['title'];
+    $template['head_title'] = $meta.'. '.$template['head_title'];
+    if (!empty($page['meta_description'])) {
+        $template['meta_description'] = $page['meta_description'];
+    }
+    $template['static_page'] = $page;
+} else {
+    redirect('/');
 }
 
-$page_title = htmlspecialchars($cmsPage->meta_title ?: $cmsPage->title).' - '.$spacart_config['title'];
-$bc_items = array(
-    array('label' => 'Accueil', 'url' => '#/'),
-    array('label' => $cmsPage->title, 'url' => '')
-);
-$breadcrumbs_html = spacart_breadcrumbs($bc_items);
-
-$tpl_vars = array('page' => $cmsPage, 'config' => $spacart_config);
-$page_html = spacart_render(SPACART_TPL_PATH.'/page/body.php', $tpl_vars);
+$template['page'] = get_template_contents('static_pages/body.php');
+$template['css'][] = 'static';

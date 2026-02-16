@@ -1,55 +1,74 @@
 <?php
-/**
- * SpaCart - Search results page handler
- */
-
-if (!defined('SPACART_BOOT')) die('Access denied');
-
-require_once SPACART_PATH.'/includes/func/func.product.php';
-require_once SPACART_PATH.'/includes/func/func.category.php';
-require_once SPACART_PATH.'/includes/func/func.brands.php';
-
-$query = '';
-if (!empty($get[1])) {
-    $query = urldecode($get[1]);
-} elseif (!empty($_GET['q'])) {
-    $query = $_GET['q'];
+if (isset($_GET['q'])) {
+	$_SESSION['substring'] = $substring = $_GET['q'];
 }
 
-$page_num = !empty($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-$sort = !empty($_GET['sort']) ? $_GET['sort'] : 'date_desc';
+$sort_by = array(
+	'2'		=> 'Name',
+	'3'		=> 'Price',
+	'4'		=> 'Bestsellers',
+	'5'		=> 'Most viewed',
+	'6'		=> 'Newest'
+);
 
-$filters = array();
-if ($query) {
-    $filters['search'] = $query;
+$template['sort_by'] = $sort_by;
+
+$template['bread_crumbs'][] = array('', "Search");
+
+$search_condition = array();
+$search_condition['substring'] = $_SESSION['substring'];
+$search_condition['orderby'] = 'p.sales_stats DESC, p.views_stats DESC, p.add_date DESC';
+if (!$_GET['sort']) {
+	$_GET['sort'] = 2;
+	$_GET['direction'] = 1;
+	$is_sort = false;
+} else
+	$is_sort = true;
+
+$search_condition['sort'] = $_GET['sort'];
+
+include SITE_ROOT . '/includes/search.php';
+
+$template['products'] = $products;
+
+if ($_GET['q']) {
+	$template["navigation_script"] = $current_location."/search?q=".$_GET['q']."&sort=".$_GET['sort'].'&direction='.$_GET['direction'];
+	$template["sort_by_script"] = $current_location."/search?q=".$_GET['q'].'&';
+} else {
+	$template["navigation_script"] = $current_location."/search?sort=".$_GET['sort'].'&direction='.$_GET['direction'];
+	$template["sort_by_script"] = $current_location."/search?";
 }
-if (!empty($_GET['price_min'])) $filters['price_min'] = (float) $_GET['price_min'];
-if (!empty($_GET['price_max'])) $filters['price_max'] = (float) $_GET['price_max'];
-if (!empty($_GET['category'])) $filters['category_id'] = (int) $_GET['category'];
-if (!empty($_GET['brand'])) $filters['brand'] = (int) $_GET['brand'];
 
-$result = spacart_get_products($filters, $sort, $page_num, 12);
+if ($_GET['filter']) {
+	$url_add = '';
+	foreach ($_GET['filter'] as $k=>$v) {
+		if (is_array($v)) {
+			foreach ($v as $k2=>$v2) {
+				if ($k == 'attr') {
+					foreach ($v2 as $v3)
+						$url_add .= '&filter['.$k.']['.$k2.'][]='.$v3;
+				} else
+					$url_add .= '&filter['.$k.']['.$k2.']='.$v2;
+			}
+		} else
+			$url_add .= '&filter['.$k.']='.$v;
+	}
 
-$page_title = 'Recherche : '.htmlspecialchars($query).' - '.$spacart_config['title'];
+	$template["navigation_script"] = $current_location."/search?q=".$_GET['q']."&sort=".$_GET['sort'].'&direction='.$_GET['direction'].$url_add.'&';
+	$template["sort_by_script"] = $current_location."/search?q=".$_GET['q']."&".$url_add.'&';
+}
 
-$bc_items = array(
-    array('label' => 'Accueil', 'url' => '#/'),
-    array('label' => 'Recherche : '.$query, 'url' => '')
-);
-$breadcrumbs_html = spacart_breadcrumbs($bc_items);
+$template['per_row'] = 4;
+$template['products_results_html'] = get_template_contents('common/products_results.php');
+if ($is_ajax && ($_GET['page'] || $is_sort || $_GET['filtered'])) {
+	exit($template['products_results_html']);
+}
 
-$brands = spacart_get_brands();
+$template['css'][] = 'products';
+$template['js'][] = 'products';
+$template['css'][] = 'popup';
+$template['js'][] = 'popup';
+$template['js'][] = 'jquery.zoom.min';
 
-$tpl_vars = array(
-    'query' => $query,
-    'products' => $result['items'],
-    'total' => $result['total'],
-    'total_pages' => $result['pages'],
-    'current_page' => $page_num,
-    'sort' => $sort,
-    'filters' => $filters,
-    'brands' => $brands,
-    'config' => $spacart_config
-);
-
-$page_html = spacart_render(SPACART_TPL_PATH.'/search/body.php', $tpl_vars);
+$template['head_title'] = 'Search results. '.$template['head_title'];
+$template['page'] = get_template_contents('search/body.php');

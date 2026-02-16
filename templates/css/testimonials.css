@@ -1,0 +1,13 @@
+.testimonials-list th {	padding: 15px 0 5px 0;
+	border-bottom: 1px solid #2e2e2e;}
+.testimonials-list .message {	padding-top: 5px;
+}
+table.new_testimonial {	width: 550px;}
+table.new_testimonial .name {
+	width: 150px;
+	text-align: right;
+	font-weight: normal;
+	vertical-align: top;
+}
+table.new_testimonial .star {	color: red;
+	padding-top: 4px;}

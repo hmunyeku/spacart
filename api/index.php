@@ -33,9 +33,29 @@ session_start();
 // Parse request
 $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = $_SERVER['REQUEST_URI'];
-$basePath = '/custom/spacart/api';
-$path = parse_url($requestUri, PHP_URL_PATH);
-$path = substr($path, strpos($path, $basePath) + strlen($basePath));
+$_api_path_parsed = parse_url($requestUri, PHP_URL_PATH);
+
+// Support both proxy URL and direct URL for API base path
+// Build list of possible base paths: internal path + proxy path if configured
+$_api_base_paths = array('/custom/spacart/api');
+$_api_proxy_url = getDolGlobalString('SPACART_PUBLIC_URL');
+if (!empty($_api_proxy_url)) {
+    $_api_proxy_parsed = parse_url($_api_proxy_url);
+    $_api_proxy_path = rtrim($_api_proxy_parsed['path'] ?? '', '/');
+    if (!empty($_api_proxy_path)) {
+        array_unshift($_api_base_paths, $_api_proxy_path . '/api');
+    }
+}
+
+$path = '';
+foreach ($_api_base_paths as $_abp) {
+    $_bpos = strpos($_api_path_parsed, $_abp);
+    if ($_bpos !== false) {
+        $path = substr($_api_path_parsed, $_bpos + strlen($_abp));
+        break;
+    }
+}
+unset($_api_base_paths, $_api_proxy_url, $_api_proxy_parsed, $_api_proxy_path, $_abp, $_bpos);
 $path = trim($path, '/');
 $segments = $path ? explode('/', $path) : array();
 
@@ -43,9 +63,23 @@ $endpoint = $segments[0] ?? '';
 $subEndpoint = $segments[1] ?? '';
 $param = $segments[2] ?? '';
 
-// CORS headers
+// CORS headers (SEC-HIGH: restricted origin - no wildcard)
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$_spacart_allowed_origins = array(
+    'https://www.coexdis.com',
+    'https://coexdis.com',
+    'http://www.coexdis.com',
+    'http://coexdis.com'
+);
+$_spacart_origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+if (in_array($_spacart_origin, $_spacart_allowed_origins)) {
+    header('Access-Control-Allow-Origin: ' . $_spacart_origin);
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    // Default to same host (for direct/non-CORS requests)
+    $_spacart_scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    header('Access-Control-Allow-Origin: ' . $_spacart_scheme . '://' . $_SERVER['HTTP_HOST']);
+}
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, X-Requested-With, X-SpaCart-Token');
 
@@ -320,6 +354,269 @@ try {
                         spacart_json_error('Email et produit requis');
                     }
                 }
+            }
+            break;
+
+        // ======== Blog Comments ========
+        case 'blog':
+            if ($subEndpoint === 'comment' && $method === 'POST') {
+                $postId = (int) ($_POST['post_id'] ?? 0);
+                $name = trim($_POST['name'] ?? '');
+                $email = trim($_POST['email'] ?? '');
+                $comment = trim($_POST['comment'] ?? '');
+                $customerId = (int) ($_SESSION['spacart_customer_id'] ?? 0);
+
+                if (!$postId || !$comment) {
+                    spacart_json_error('Post ID et commentaire requis');
+                    break;
+                }
+                if (!$customerId && (!$name || !$email)) {
+                    spacart_json_error('Nom et email requis');
+                    break;
+                }
+
+                $sql = "INSERT INTO ".MAIN_DB_PREFIX."spacart_blog_comment";
+                $sql .= " (fk_blog, fk_customer, author_name, author_email, comment, status, date_creation)";
+                $sql .= " VALUES (".$postId.", ".$customerId.", '".$db->escape($name)."',";
+                $sql .= " '".$db->escape($email)."', '".$db->escape($comment)."', 0, NOW())";
+                $db->query($sql);
+                spacart_json_response(array('success' => true, 'message' => 'Commentaire soumis (en attente de modération)'));
+            } elseif ($subEndpoint === 'comments') {
+                $postId = (int) ($param ?: ($_GET['post_id'] ?? 0));
+                $comments = array();
+                if ($postId) {
+                    $sql = "SELECT author_name, comment, date_creation FROM ".MAIN_DB_PREFIX."spacart_blog_comment WHERE fk_blog = ".$postId." AND status = 1 ORDER BY date_creation DESC";
+                    $res = $db->query($sql);
+                    if ($res) {
+                        while ($obj = $db->fetch_object($res)) {
+                            $comments[] = $obj;
+                        }
+                    }
+                }
+                spacart_json_response(array('success' => true, 'comments' => $comments));
+            }
+            break;
+
+        // ======== News Comments ========
+        case 'news':
+            if ($subEndpoint === 'comment' && $method === 'POST') {
+                $newsId = (int) ($_POST['news_id'] ?? 0);
+                $name = trim($_POST['name'] ?? '');
+                $email = trim($_POST['email'] ?? '');
+                $comment = trim($_POST['comment'] ?? '');
+                $customerId = (int) ($_SESSION['spacart_customer_id'] ?? 0);
+
+                if (!$newsId || !$comment) {
+                    spacart_json_error('News ID et commentaire requis');
+                    break;
+                }
+                if (!$customerId && (!$name || !$email)) {
+                    spacart_json_error('Nom et email requis');
+                    break;
+                }
+
+                $sql = "INSERT INTO ".MAIN_DB_PREFIX."spacart_news_comment";
+                $sql .= " (fk_news, fk_customer, author_name, author_email, comment, status, date_creation)";
+                $sql .= " VALUES (".$newsId.", ".$customerId.", '".$db->escape($name)."',";
+                $sql .= " '".$db->escape($email)."', '".$db->escape($comment)."', 0, NOW())";
+                $db->query($sql);
+                spacart_json_response(array('success' => true, 'message' => 'Commentaire soumis (en attente de modération)'));
+            } elseif ($subEndpoint === 'comments') {
+                $newsId = (int) ($param ?: ($_GET['news_id'] ?? 0));
+                $comments = array();
+                if ($newsId) {
+                    $sql = "SELECT author_name, comment, date_creation FROM ".MAIN_DB_PREFIX."spacart_news_comment WHERE fk_news = ".$newsId." AND status = 1 ORDER BY date_creation DESC";
+                    $res = $db->query($sql);
+                    if ($res) {
+                        while ($obj = $db->fetch_object($res)) {
+                            $comments[] = $obj;
+                        }
+                    }
+                }
+                spacart_json_response(array('success' => true, 'comments' => $comments));
+            }
+            break;
+
+        // ======== Password Reset ========
+        case 'password':
+            require_once SPACART_PATH.'/includes/func/func.user.php';
+
+            if ($subEndpoint === 'reset' && $method === 'POST') {
+                $action = $_POST['action'] ?? 'request';
+
+                if ($action === 'request') {
+                    $email = trim($_POST['email'] ?? '');
+                    if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                        spacart_json_error('Email invalide');
+                        break;
+                    }
+
+                    $sql = "SELECT rowid, firstname, lastname FROM ".MAIN_DB_PREFIX."spacart_customer WHERE email = '".$db->escape($email)."' AND active = 1";
+                    $res = $db->query($sql);
+                    if ($res && $db->num_rows($res)) {
+                        $customer = $db->fetch_object($res);
+                        $token = bin2hex(random_bytes(32));
+                        $expiry = date('Y-m-d H:i:s', strtotime('+1 hour'));
+                        $db->query("UPDATE ".MAIN_DB_PREFIX."spacart_customer SET reset_token = '".$db->escape($token)."', reset_token_expiry = '".$expiry."', tms = NOW() WHERE rowid = ".(int) $customer->rowid);
+
+                        $shopUrl = getDolGlobalString('SPACART_SHOP_URL', DOL_MAIN_URL_ROOT.'/custom/spacart/public/');
+                        $resetUrl = $shopUrl.'#/password?token='.$token.'&email='.urlencode($email);
+                        $subject = 'Réinitialisation mot de passe';
+                        $body = $customer->firstname.",\n\nCliquez ici pour réinitialiser votre mot de passe :\n".$resetUrl."\n\nCe lien expire dans 1 heure.";
+                        spacart_send_mail($email, $subject, $body);
+                    }
+                    spacart_json_response(array('success' => true, 'message' => 'Si un compte existe, un email a été envoyé.'));
+
+                } elseif ($action === 'confirm') {
+                    $email = trim($_POST['email'] ?? '');
+                    $token = trim($_POST['token'] ?? '');
+                    $newPassword = $_POST['password'] ?? '';
+
+                    if (!$email || !$token || strlen($newPassword) < 6) {
+                        spacart_json_error('Données invalides');
+                        break;
+                    }
+
+                    $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."spacart_customer WHERE email = '".$db->escape($email)."' AND reset_token = '".$db->escape($token)."' AND reset_token_expiry > NOW()";
+                    $res = $db->query($sql);
+                    if ($res && $db->num_rows($res)) {
+                        $cust = $db->fetch_object($res);
+                        $hash = password_hash($newPassword, PASSWORD_BCRYPT);
+                        $db->query("UPDATE ".MAIN_DB_PREFIX."spacart_customer SET password = '".$db->escape($hash)."', reset_token = NULL, reset_token_expiry = NULL, tms = NOW() WHERE rowid = ".(int) $cust->rowid);
+                        spacart_json_response(array('success' => true, 'message' => 'Mot de passe réinitialisé'));
+                    } else {
+                        spacart_json_error('Lien invalide ou expiré');
+                    }
+                }
+            }
+            break;
+
+        // ======== Support Tickets ========
+        case 'support':
+            if ($subEndpoint === 'ticket' && $method === 'POST') {
+                $customerId = (int) ($_SESSION['spacart_customer_id'] ?? 0);
+                $subject = trim($_POST['subject'] ?? '');
+                $message = trim($_POST['message'] ?? '');
+                $email = trim($_POST['email'] ?? '');
+                $name = trim($_POST['name'] ?? '');
+
+                if (!$subject || !$message) {
+                    spacart_json_error('Sujet et message requis');
+                    break;
+                }
+
+                if ($customerId) {
+                    require_once SPACART_PATH.'/includes/func/func.user.php';
+                    $customer = spacart_load_customer($customerId);
+                    if ($customer) {
+                        $email = $customer->email;
+                        $name = $customer->firstname.' '.$customer->lastname;
+                    }
+                }
+
+                $sql = "INSERT INTO ".MAIN_DB_PREFIX."spacart_support_ticket";
+                $sql .= " (fk_customer, customer_name, customer_email, subject, status, date_creation, tms)";
+                $sql .= " VALUES (".(int) $customerId.", '".$db->escape($name)."', '".$db->escape($email)."',";
+                $sql .= " '".$db->escape($subject)."', 'open', NOW(), NOW())";
+                $db->query($sql);
+                $ticketId = $db->last_insert_id(MAIN_DB_PREFIX."spacart_support_ticket");
+
+                if ($ticketId) {
+                    $sql2 = "INSERT INTO ".MAIN_DB_PREFIX."spacart_support_message";
+                    $sql2 .= " (fk_ticket, sender_type, sender_name, message, date_creation)";
+                    $sql2 .= " VALUES (".(int) $ticketId.", 'customer', '".$db->escape($name)."', '".$db->escape($message)."', NOW())";
+                    $db->query($sql2);
+                }
+
+                spacart_json_response(array('success' => true, 'message' => 'Ticket créé', 'ticket_id' => $ticketId));
+            } elseif ($subEndpoint === 'tickets') {
+                $customerId = (int) ($_SESSION['spacart_customer_id'] ?? 0);
+                if (!$customerId) {
+                    spacart_json_error('Non connecté', 401);
+                    break;
+                }
+                $tickets = array();
+                $sql = "SELECT rowid, subject, status, date_creation FROM ".MAIN_DB_PREFIX."spacart_support_ticket WHERE fk_customer = ".$customerId." ORDER BY date_creation DESC";
+                $res = $db->query($sql);
+                if ($res) {
+                    while ($obj = $db->fetch_object($res)) {
+                        $tickets[] = $obj;
+                    }
+                }
+                spacart_json_response(array('success' => true, 'tickets' => $tickets));
+            }
+            break;
+
+        // ======== Products API (public listing) ========
+        case 'products':
+            require_once SPACART_PATH.'/includes/func/func.product.php';
+
+            $page = max(1, (int) ($_GET['page'] ?? 1));
+            $limit = min(50, max(1, (int) ($_GET['limit'] ?? 20)));
+            $categoryId = (int) ($_GET['category_id'] ?? 0);
+            $search = trim($_GET['q'] ?? '');
+            $sort = $_GET['sort'] ?? 'date_desc';
+
+            $filters = array();
+            if ($categoryId) $filters['category_id'] = $categoryId;
+            if ($search) $filters['search'] = $search;
+
+            $result = spacart_get_products($filters, $sort, $page, $limit);
+
+            spacart_json_response(array(
+                'success' => true,
+                'products' => $result['items'],
+                'total' => $result['total'],
+                'page' => $result['page'],
+                'pages' => $result['pages']
+            ));
+            break;
+
+        // ======== Language ========
+        case 'language':
+            if ($method === 'POST') {
+                $lang = $db->escape($_POST['language'] ?? '');
+                if ($lang) {
+                    spacart_set_language($lang);
+                    spacart_json_response(array('success' => true, 'language' => $lang));
+                } else {
+                    spacart_json_error('Language code required');
+                }
+            } else {
+                spacart_json_response(array('language' => $_SESSION['spacart_language'] ?? 'fr_FR'));
+            }
+            break;
+
+        // ======== Currency ========
+        case 'currency':
+            if ($method === 'POST') {
+                $cur = $db->escape($_POST['currency'] ?? '');
+                if ($cur) {
+                    spacart_set_currency($cur);
+                    $rate = spacart_get_currency_rate();
+                    $symbol = spacart_get_currency_symbol();
+                    spacart_json_response(array('success' => true, 'currency' => $cur, 'rate' => $rate, 'symbol' => $symbol));
+                } else {
+                    spacart_json_error('Currency code required');
+                }
+            } else {
+                $currencies = spacart_get_currencies();
+                spacart_json_response(array('currencies' => $currencies, 'current' => $_SESSION['spacart_currency'] ?? 'EUR'));
+            }
+            break;
+
+        // ======== Theme ========
+        case 'theme':
+            if ($subEndpoint === 'save' && $method === 'POST') {
+                $primary = $db->escape($_POST['primary_color'] ?? '');
+                $secondary = $db->escape($_POST['secondary_color'] ?? '');
+                if ($primary) {
+                    $_SESSION['spacart_theme_color'] = $primary;
+                }
+                if ($secondary) {
+                    $_SESSION['spacart_theme_color_2'] = $secondary;
+                }
+                spacart_json_response(array('success' => true));
             }
             break;
 

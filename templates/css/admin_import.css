@@ -1,0 +1,10 @@
+.export th {	text-align: left;
+	padding-left: 5px;}
+.export .second {	padding-left: 20px;}
+.export .third {
+	padding-left: 40px;
+}
+.export .sep {	height: 1px;
+	padding: 0px;
+	border-top: 1px solid #999;
+}

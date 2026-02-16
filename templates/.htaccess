@@ -1,0 +1,6 @@
+Options -Indexes
+
+<Files ~ "(?i:\.css|\.js)">
+  Allow from all
+</Files>
+

@@ -1,0 +1,53 @@
+input.def {
+	color: #414141 !important;
+}
+.alert_message.register_alert {
+    position: absolute;
+}
+.register_alert {
+	width: 380px;
+	margin-left: -190px;
+	padding: 20px;
+	overflow-x: hidden;
+}
+.regsec {
+	line-height: 45px;
+}
+.regsec input[type=text], .regsec input[type=password] {
+	width: 120px;
+	margin-right: 10px;
+}
+.regsec input.name {
+	width: 120px;
+}
+.regsec .firstname {
+	margin-right: 10px;
+}
+.register, .login-link {
+
+}
+.regsec input[type="text"], .regsec input[type="password"] {
+	border: 1px solid #f5f5f5;
+	-webkit-border-radius: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	padding: 10px;
+	font-size: 17px;
+	font-weight: normal;
+	color: #ccc;
+}
+.regsec input[type="text"]:hover, .regsec input[type="password"]:hover {
+	color: #aaa;
+	border: 1px solid #ccc;
+	cursor: pointer;
+}
+.register_alert h1 {
+    margin-bottom: -10px;
+}
+.register_alert .group {
+    margin-top: 30px;
+}
+.alert_message.register_alert {
+    position: absolute;
+    margin-top: 0;
+}

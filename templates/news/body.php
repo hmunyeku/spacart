@@ -1,94 +1,80 @@
-<div class="container spacart-page">
-    <h4>{$page_title}</h4>
+<div class="news-content">
+{*
+<form method="POST" name="nform" onsubmit="javascript: if (document.nform.substring.value != 'Search') return true; else return false;">
+<div class="news-search"><input value="<?php echo $news_substring ? $news_substring : 'Search'; ?>" onfocus="javascript: if (this.value == 'Search') this.value = '';" onblur="javascript: if (this.value == '') this.value = 'Search';" type="text" name="substring" /><input type="image" src="/images/spacer.gif" alt="" /></div>
+</form>
+*}
+<h1>{lng[News]}</h1>
 
-    {if $single_article}
-    <!-- Single news article -->
-    <div class="row">
-        <div class="col s12 m10 offset-m1">
-            <article class="spacart-blog-single">
-                {if $article->image}
-                <div class="spacart-blog-hero" style="margin-bottom:20px;">
-                    <img src="{$article->image}" alt="{$article->title}" class="responsive-img" style="width:100%;max-height:400px;object-fit:cover;border-radius:4px;">
-                </div>
-                {/if}
-                <h4>{$article->title}</h4>
-                <p class="grey-text"><i class="material-icons tiny">event</i> {$article->date_creation|date}</p>
-                <div class="spacart-blog-content">{$article->content}</div>
+<?php
+if ($news) {
+?>
 
-                <!-- Comments -->
-                <div class="section" style="margin-top:30px;">
-                    <h5>{$comments_count} commentaire(s)</h5>
-                    <div class="divider"></div>
-
-                    {foreach $comments as $comment}
-                    <div class="spacart-comment" style="padding:15px 0;border-bottom:1px solid #eee;">
-                        <strong>{$comment->author_name}</strong>
-                        <span class="grey-text right">{$comment->date_creation|date}</span>
-                        <p>{$comment->content}</p>
-                    </div>
-                    {/foreach}
-
-                    <div class="card-panel" style="margin-top:20px;">
-                        <h6>Laisser un commentaire</h6>
-                        <form class="spacart-comment-form" data-type="news" data-id="{$article->rowid}">
-                            <div class="row">
-                                <div class="input-field col s12 m6">
-                                    <input type="text" name="author_name" id="nc_name" required>
-                                    <label for="nc_name">Votre nom</label>
-                                </div>
-                                <div class="input-field col s12 m6">
-                                    <input type="email" name="author_email" id="nc_email">
-                                    <label for="nc_email">Email (optionnel)</label>
-                                </div>
-                            </div>
-                            <div class="input-field">
-                                <textarea name="content" id="nc_content" class="materialize-textarea" required></textarea>
-                                <label for="nc_content">Votre commentaire</label>
-                            </div>
-                            <button type="submit" class="btn waves-effect" style="background:{$primary_color}">Envoyer</button>
-                        </form>
-                    </div>
-                </div>
-            </article>
-        </div>
-    </div>
-
-    {else}
-    <!-- News listing -->
-    <div class="row">
-        {foreach $articles as $article}
-        <div class="col s12 m6 l4">
-            <div class="card spacart-blog-card">
-                {if $article->image}
-                <div class="card-image">
-                    <img src="{$article->image}" alt="{$article->title}" style="height:200px;object-fit:cover;">
-                </div>
-                {/if}
-                <div class="card-content">
-                    <span class="card-title">{$article->title}</span>
-                    <p class="grey-text" style="margin-bottom:10px;"><i class="material-icons tiny">event</i> {$article->date_creation|date}</p>
-                    <p>{$article->excerpt}</p>
-                </div>
-                <div class="card-action">
-                    <a href="#/news/{$article->rowid}" class="spa-link" style="color:{$primary_color}">Lire la suite</a>
-                    {if $article->nb_comments > 0}
-                    <span class="grey-text right"><i class="material-icons tiny">comment</i> {$article->nb_comments}</span>
-                    {/if}
-                </div>
-            </div>
-        </div>
-        {/foreach}
-    </div>
-
-    {if $total_pages > 1}
-        {include="common/pagination"}
-    {/if}
-
-    {if empty($articles)}
-    <div class="center-align" style="padding:40px;">
-        <i class="material-icons large grey-text">article</i>
-        <p class="grey-text">Aucune actualité pour le moment.</p>
-    </div>
-    {/if}
-    {/if}
+<div class="news">
+<div class="date"><?php echo date($date_format, $news['date']); ?></div>
+<h1 class="title"><?php echo $news['title']; ?></h1>
+<?php
+	if ($news['imageid']) {
+		echo '<div class="image">';
+		$image = $news;
+		$image['new_width'] = 700;
+		$image['new_height'] = 400;
+		include SITE_ROOT . '/includes/news_image.php';
+		echo '</div>';
+	}
+?>
+<div class="fulldescr">{$news['fulldescr']}</div>
+<div class="back"><a href="{$current_location}/news" class="ajax_link">{lng[Back to News mainpage]}</a></div>
 </div>
+
+<?php
+} else {
+?>
+<?php
+	if (!$newss) {
+		echo '<br /><br />No news found<br />';
+		return;
+	}
+
+	if ($news_substring)
+		echo '<br /><a href="{$current_location}/news?nosearch=1">Reset search condition</a><br /><br />';
+
+?>
+
+{if $newss}
+<div class="news-list">
+<br />
+{foreach $newss as $b}
+{php $url = $current_location.'/news/'.($b['cleanurl'] ? $b['cleanurl'].'.html' : $b['newsid']);}
+<a class="ajax_link" href="{$url}"><h5>{$b['title']} (<span class="date"><?php echo date($date_format, $b['date']); ?></span>)</h5></a>
+<div class="news-item">
+<?php
+	if ($b['imageid']) {
+		echo '<a class="ajax_link" href="'.$url.'">';
+		$image = $b;
+		$image['new_width'] = 250;
+		$image['new_height'] = 200;
+		include SITE_ROOT . '/includes/news_image.php';
+		echo '</a>';
+	}
+?>
+<div class="short-descr message-box">{$b['descr']}</div>
+<br />
+<a class="news-more ajax_link link-button" href="{$url}">{lng[See full article]}</a>
+</div>
+<div class="clear"></div>
+{/foreach}
+</div>
+{/if}
+
+<?php
+	if ($total_pages > 2) {
+?>
+{include="common/navigation.php"}
+<br />
+<?php
+	}
+}
+?>
+</div>
+<div class="clear"></div>

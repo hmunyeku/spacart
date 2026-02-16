@@ -1,68 +1,54 @@
-<!-- Filter Sidebar -->
-<div class="spacart-filter-sidebar">
+<div class="hidden filter-url">{$filter_url}</div>
+{if $get['0'] != 'brands'}
+{if $filter['brandid']}
+<h4>{lng[Brands]}</h4>
+<div class="selected-filter" data-id="{$filter['brandid']}" data-what="brand">{$filter['brand']['name']} (x)</div>
+{elseif $brands}
+<h4 class="pointer">{lng[Brands]}</h4>
+<ul data-what="brand">
+{foreach $brands as $b}
+ <li data-id="{$b['id']}">{$b['name']} ({$b['cnt']})</li>
+{/foreach}
+</ul>
+{/if}
+{/if}
 
-    <!-- Subcategories -->
-    <?php if (!empty($subcategories)) { ?>
-    <div class="spacart-filter-section">
-        <h6>Catégories</h6>
-        <ul class="spacart-filter-list">
-            <?php foreach ($subcategories as $sub) { ?>
-            <li>
-                <a href="#/category/<?php echo $sub->id; ?>" class="spacart-spa-link <?php echo (!empty($filters['category_id']) && $filters['category_id'] == $sub->id) ? 'active' : ''; ?>">
-                    <?php echo htmlspecialchars($sub->label); ?>
-                    <span class="filter-count">(<?php echo $sub->product_count; ?>)</span>
-                </a>
-            </li>
-            <?php } ?>
-        </ul>
-    </div>
-    <?php } ?>
+{if $filter['price']}
+<h4>{lng[Price]}</h4>
+<div class="selected-filter" data-id="{$filter['price']}" data-what="price">{$filter['price']} (x)</div>
+{elseif $prices}
+<h4 class="pointer">{lng[Price]}</h4>
+<ul data-what="price">
+{foreach $prices as $k=>$v}
+ <li data-id="{$k}">{$k} ({$v})</li>
+{/foreach}
+</ul>
+{/if}
 
-    <!-- Brands -->
-    <?php if (!empty($brands)) { ?>
-    <div class="spacart-filter-section">
-        <h6>Marques</h6>
-        <ul class="spacart-filter-list">
-            <?php foreach ($brands as $brand) { ?>
-            <li>
-                <a href="#/brands/<?php echo $brand->id; ?>" class="spacart-spa-link <?php echo (!empty($filters['brand']) && $filters['brand'] == $brand->id) ? 'active' : ''; ?>">
-                    <?php echo htmlspecialchars($brand->label); ?>
-                    <span class="filter-count">(<?php echo $brand->product_count; ?>)</span>
-                </a>
-            </li>
-            <?php } ?>
-        </ul>
-    </div>
-    <?php } ?>
+{if $options}
+{foreach $options as $c=>$o}
+{if false && $filter['attr'][$c]}
+<h4>{$c}</h4>
+<div class="selected-filter" data-id="{php echo escape($c, 2);}" data-oid="{php echo escape($filter['attr'][$c], 2);}" data-what="attr">{$filter['attr'][$c]} (x)</div>
+{else}
+<h4 class="pointer{if $filter['attr'][$c]} opened{/if}">{$c}</h4>
+<ul data-what="attr" groupid="{php echo func_filter_id($c);}" class="filter-attr filter-box-{php echo func_filter_id($c);}{if $filter['attr'][$c]} opened{/if}">
+{foreach $o as $k=>$v}
+ <li data-id="{php echo escape($c, 2);}" data-oid="{php echo escape($k, 2);}"><label><input type="checkbox"{foreach $filter['attr'][$c] as $selected}{if $selected == $k} checked{/if}{/foreach} />{$k} ({$v['cnt']})</label></li>
+{/foreach}
+</ul>
+{/if}
 
-    <!-- Price Range -->
-    <div class="spacart-filter-section">
-        <h6>Prix</h6>
-        <form id="spacart-price-filter" class="spacart-price-range">
-            <div class="row" style="margin-bottom:0;">
-                <div class="input-field col s6" style="margin-top:0;">
-                    <input type="number" id="spacart-price-min" name="price_min" placeholder="Min" step="0.01"
-                           value="<?php echo !empty($filters['price_min']) ? htmlspecialchars($filters['price_min']) : ''; ?>">
-                </div>
-                <div class="input-field col s6" style="margin-top:0;">
-                    <input type="number" id="spacart-price-max" name="price_max" placeholder="Max" step="0.01"
-                           value="<?php echo !empty($filters['price_max']) ? htmlspecialchars($filters['price_max']) : ''; ?>">
-                </div>
-            </div>
-            <button type="submit" class="btn btn-small btn-flat" style="width:100%;">
-                <i class="material-icons left">filter_list</i>Filtrer
-            </button>
-        </form>
-    </div>
-
-    <!-- In Stock -->
-    <div class="spacart-filter-section">
-        <label>
-            <input type="checkbox" class="filled-in" id="spacart-filter-stock"
-                   <?php echo !empty($filters['in_stock']) ? 'checked' : ''; ?>
-                   onchange="var h=window.location.hash;var u=new URL('http://x'+h.substr(1));if(this.checked)u.searchParams.set('in_stock','1');else u.searchParams.delete('in_stock');window.location.hash='#'+u.pathname+u.search;">
-            <span>En stock uniquement</span>
-        </label>
-    </div>
-
+{/foreach}
+{/if}
+{if $_GET['filter']}
+<a href="javascript: void(0);" class="reset_filter">Reset filter</a>
+<a href="{$reset_filter_url}" class="ajax_link reset_filter_url hidden"></a>
+{/if}
+{*
+<h4>{lng[Price range]}</h4>
+<div class="filter-price">
+<input type="text" id="min_price" value="{php echo floor($min_price);}" readonly /> - <input type="text" id="max_price" value="{php echo ceil($max_price);}" readonly />
+<div id="slider-range"></div>
 </div>
+*}

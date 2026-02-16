@@ -1,0 +1,4 @@
+table.categories {	width: 100%;}
+table.categories td {	border-bottom: 1px solid #999;
+	padding: 3px;
+	vertical-align: middle;}

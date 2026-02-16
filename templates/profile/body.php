@@ -1,116 +1,216 @@
-<!-- Profile Page -->
-
-<h5 style="margin-top:15px;">
-    <i class="material-icons left">person</i>Mon Compte
-</h5>
-
-<div class="row">
-    <div class="col l8 m12 s12">
-
-        <!-- Profile Info -->
-        <div class="card spacart-profile-section">
-            <div class="card-content">
-                <span class="card-title">Informations personnelles</span>
-                <form id="spacart-profile-form">
-                    <div class="row" style="margin-bottom:0;">
-                        <div class="input-field col s6">
-                            <input type="text" name="firstname" id="prof-firstname" value="<?php echo htmlspecialchars($customer->firstname); ?>">
-                            <label for="prof-firstname" class="active">Prénom</label>
-                        </div>
-                        <div class="input-field col s6">
-                            <input type="text" name="lastname" id="prof-lastname" value="<?php echo htmlspecialchars($customer->lastname); ?>">
-                            <label for="prof-lastname" class="active">Nom</label>
-                        </div>
-                    </div>
-                    <div class="input-field">
-                        <input type="email" name="email" id="prof-email" value="<?php echo htmlspecialchars($customer->email); ?>">
-                        <label for="prof-email" class="active">Email</label>
-                    </div>
-                    <div class="input-field">
-                        <input type="tel" name="phone" id="prof-phone" value="<?php echo htmlspecialchars($customer->phone); ?>">
-                        <label for="prof-phone" class="active">Téléphone</label>
-                    </div>
-                    <div class="input-field">
-                        <input type="text" name="company" id="prof-company" value="<?php echo htmlspecialchars($customer->company); ?>">
-                        <label for="prof-company" class="active">Société</label>
-                    </div>
-
-                    <div class="divider" style="margin:15px 0;"></div>
-                    <p class="grey-text">Changer le mot de passe (laisser vide pour ne pas modifier)</p>
-                    <div class="input-field">
-                        <input type="password" name="new_password" id="prof-newpwd">
-                        <label for="prof-newpwd">Nouveau mot de passe</label>
-                    </div>
-
-                    <button type="submit" class="btn">
-                        <i class="material-icons left">save</i>Enregistrer
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Addresses -->
-        <div class="card spacart-profile-section">
-            <div class="card-content">
-                <span class="card-title">Mes adresses</span>
-                <?php if (!empty($addresses)) { ?>
-                    <?php foreach ($addresses as $addr) { ?>
-                    <div class="spacart-address-card <?php echo $addr->is_default ? 'default' : ''; ?>">
-                        <?php if ($addr->is_default) { ?>
-                            <span class="badge" style="background:var(--spacart-primary);color:#fff;border-radius:3px;padding:2px 8px;font-size:0.75rem;">Par défaut</span>
-                        <?php } ?>
-                        <strong><?php echo htmlspecialchars($addr->firstname.' '.$addr->lastname); ?></strong><br>
-                        <?php echo htmlspecialchars($addr->address); ?><br>
-                        <?php echo htmlspecialchars($addr->zip.' '.$addr->city); ?><br>
-                        <?php if ($addr->country_name) echo htmlspecialchars($addr->country_name); ?><br>
-                        <?php if ($addr->phone) { ?><i class="material-icons tiny">phone</i> <?php echo htmlspecialchars($addr->phone); ?><?php } ?>
-                        <span class="chip" style="font-size:0.75rem;"><?php echo $addr->type === 'billing' ? 'Facturation' : 'Livraison'; ?></span>
-                    </div>
-                    <?php } ?>
-                <?php } else { ?>
-                    <p class="grey-text">Aucune adresse enregistrée.</p>
-                <?php } ?>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Sidebar: Orders -->
-    <div class="col l4 m12 s12">
-        <div class="card">
-            <div class="card-content">
-                <span class="card-title">Mes commandes</span>
-                <?php if (!empty($orders)) { ?>
-                    <table class="striped" style="font-size:0.85rem;">
-                        <thead>
-                            <tr><th>Réf</th><th>Date</th><th>Total</th><th>Statut</th></tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($orders as $order) { ?>
-                            <tr class="spacart-order-row">
-                                <td>
-                                    <a href="#/invoice/<?php echo $order->rowid; ?>" class="spacart-spa-link"><?php echo htmlspecialchars($order->ref); ?></a>
-                                </td>
-                                <td><?php echo date('d/m/Y', strtotime($order->date_commande ?: $order->date_creation)); ?></td>
-                                <td><?php echo spacartFormatPrice($order->total_ttc); ?></td>
-                                <td><span class="chip" style="font-size:0.7rem;"><?php echo $order->status_label; ?></span></td>
-                            </tr>
-                            <?php } ?>
-                        </tbody>
-                    </table>
-                <?php } else { ?>
-                    <p class="grey-text">Aucune commande</p>
-                <?php } ?>
-            </div>
-        </div>
-
-        <!-- Quick links -->
-        <div class="card">
-            <div class="card-content">
-                <a href="#/wishlist" class="spacart-spa-link"><i class="material-icons left">favorite</i>Ma wishlist</a><br><br>
-                <a href="#/orders" class="spacart-spa-link"><i class="material-icons left">receipt</i>Toutes mes commandes</a><br><br>
-                <a href="#!" id="spacart-logout-link" style="color:#ff5252;"><i class="material-icons left">logout</i>Déconnexion</a>
-            </div>
-        </div>
-    </div>
+<div class="tabs">
+<a onclick="javascript: return profile_popup();" href="/profile"{if $section != 'orders'} class="active"{/if}>{lng[Your profile]}</a>
+<a onclick="javascript: return profile_popup('/orders');" href="/profile/orders"{if $section == 'orders'} class="active"{/if}>{lng[Orders history]}</a>
 </div>
+<br />
+{if $section == 'orders'}
+ {if $orders}
+<table cellspacing="0" cellpadding="15">
+  {foreach $orders as $k=>$v}
+<tr>
+ <td><a href="/invoice/{$v['orderid']}">#{$v['orderid']}</a></td>
+ <td><a href="/invoice/{$v['orderid']}">{$order_statuses[$v['status']]}</a></td>
+ <td><a href="/invoice/{$v['orderid']}">{php echo date($datetime_format, $v['date']);}</a></td>
+ <td><a href="/invoice/{$v['orderid']}">{price $v['total']}</a></td>
+</tr>
+  {/foreach}
+</table>
+ {else}
+{lng[You have no orders yet.]}
+ {/if}
+{else}
+<center>
+<form method="post" action="/profile" name="user_form" class="material-form">
+    <div class="group">
+      <input type="text" name="posted_data[firstname]" required value="{php echo escape($userinfo['firstname'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[First name]}</label>
+    </div>
+
+    <div class="group">
+      <input type="text" name="posted_data[lastname]" required value="{php echo escape($userinfo['lastname'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Last name]}</label>
+    </div>
+    <div class="group">
+      <input type="text" name="posted_data[phone]" required value="{php echo escape($userinfo['phone'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Phone]}</label>
+    </div>
+    <div class="group">
+      <input type="text" name="posted_data[email]" required value="{php echo escape($userinfo['email'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Email]}</label>
+    </div>
+    <div class="group">
+      <input type="password" name="password" value="" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Password]}</label>
+    </div>
+    <div class="group">
+      <input type="text" name="posted_data[address]" required value="{php echo escape($userinfo['address'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Address]}</label>
+    </div>
+
+    <div class="group">
+      <input type="text" name="posted_data[city]" required value="{php echo escape($userinfo['city'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[City]}</label>
+    </div>
+    <div class="group group-select">
+<label>{lng[State]}:</label>
+<div>
+{php $found = false;}
+{foreach $countries as $v}
+ {if $v['code'] == $userinfo['country'] && $v['states']}
+  {php $found = true;}
+<select name="posted_data[state]" id="state">
+  {foreach $v['states'] as $s}
+ <option value="{$s['code']}"{if $s['code'] == $userinfo['state']} selected{/if}>{$s['state']}</option>
+   {/foreach}
+</select>
+ {/if}
+{/foreach}
+
+{if !$found}
+<input type="text" name="posted_data[state]" id="state" value="{php echo escape($userinfo['state'], 2);}" />
+{/if}
+</div>
+    </div>
+
+    <div class="group group-select">
+ <label>{lng[Country]}:</label>
+<select name="posted_data[country]" id="country">
+{foreach $countries as $v}
+ <option value="{$v['code']}"{if $v['code'] == $userinfo['country'] || (!$userinfo['country'] && $v['code'] == 'US')} selected{/if}>{$v['country']}</option>
+{/foreach}
+</select>
+    </div>
+
+    <div class="group">
+      <input type="text" name="posted_data[zipcode]" required value="{php echo escape($userinfo['zipcode'], 2);}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Zip/Postal code]}</label>
+    </div>
+
+{if $memberships}
+{if $userinfo['membershipid']}
+    <div class="group">
+      <input type="text" disabled value="{foreach $memberships as $v}{if $v['membershipid'] == $userinfo['membershipid']}{php echo escape($v['membership'], 2);}{/if}{/foreach}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Membership]}</label>
+    </div>
+{/if}
+
+{php $name="pending_membershipid"; $value = $userinfo['pending_membershipid'];}
+    <div class="group group-select">
+ <label>{lng[Sign up for membership]}:</label>
+{include="common/membership.php"}
+    </div>
+{/if}
+
+<div align="center"><button>{lng[Save]}</button></div>
+{*
+<table cellpadding="2" class="user_table textinputs">
+<tr>
+ <td class="name">{lng[First name]}:</td>
+ <td><input type="text" name="posted_data[firstname]" value="{php echo escape($userinfo['firstname'], 2);}" /></td>
+</td>
+<tr>
+ <td class="name">{lng[Last name]}:</td>
+ <td><input type="text" name="posted_data[lastname]" value="{php echo escape($userinfo['lastname'], 2);}" /></td>
+</tr>
+<tr>
+ <td class="name">{lng[Phone]}:</td>
+ <td><input type="text" name="posted_data[phone]" value="{php echo escape($user['phone'], 2);}" /></td>
+</tr>
+<tr>
+ <td class="name">{lng[Email]}:</td>
+ <td><input type="text" name="posted_data[email]" value="{php echo escape($userinfo['email'], 2);}" /></td>
+</tr>
+
+<tr>
+ <td class="name">{lng[Password]}:</td>
+ <td><input type="password" name="password" value="" /></td>
+</tr>
+<tr>
+ <td class="name">{lng[Address]}:</td>
+ <td><input type="text" name="posted_data[address]" value="{php echo escape($userinfo['address'], 2);}" /></td>
+</tr>
+<tr>
+ <td class="name">{lng[City]}:</td>
+ <td><input type="text" name="posted_data[city]" value="{php echo escape($userinfo['city'], 2);}" /></td>
+</tr>
+
+<tr>
+ <td class="name">{lng[State]}:</td>
+ <td>
+{php $found = false;}
+{foreach $countries as $v}
+ {if $v['code'] == $userinfo['country'] && $v['states']}
+  {php $found = true;}
+<select name="posted_data[state]" id="state">
+  {foreach $v['states'] as $s}
+ <option value="{$s['code']}"{if $s['code'] == $userinfo['state']} selected{/if}>{$s['state']}</option>
+   {/foreach}
+</select>
+ {/if}
+{/foreach}
+
+{if !$found}
+<input type="text" name="posted_data[state]" id="state" value="{php echo escape($userinfo['state'], 2);}" /></td>
+{/if}
+</tr>
+
+<tr>
+ <td class="name">{lng[Country]}:</td>
+ <td>
+<select name="posted_data[country]" id="country">
+{foreach $countries as $v}
+ <option value="{$v['code']}"{if $v['code'] == $userinfo['country'] || (!$userinfo['country'] && $v['code'] == 'US')} selected{/if}>{$v['country']}</option>
+{/foreach}
+</select>
+ </td>
+</tr>
+
+<tr>
+ <td class="name">{lng[Zip/Postal code]}:</td>
+ <td><input type="text" name="posted_data[zipcode]" value="{php echo escape($userinfo['zipcode'], 2);}" /></td>
+</tr>
+
+{if $memberships}
+<tr>
+ <td colspan="2"><hr /></td>
+</tr>
+{if $userinfo['membershipid']}
+<tr>
+ <td class="name">Membership:</td>
+ <td>{foreach $memberships as $v}{if $v['membershipid'] == $userinfo['membershipid']}{$v['membership']}{/if}{/foreach}</td>
+</tr>
+{/if}
+
+{php $name="pending_membershipid"; $value = $userinfo['pending_membershipid'];}
+<tr>
+ <td class="name">Sign up for membership:</td>
+ <td>{include="common/membership.php"}</td>
+</tr>
+{/if}
+
+<tr>
+ <td></td>
+ <td><br /><button>{lng[Save]}</button></td>
+</tr>
+</table>
+*}
+</form>
+{/if}

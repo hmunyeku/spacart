@@ -1,471 +1,341 @@
 <?php
-/**
- * SpaCart - Cart functions
- * Cart persistence: session + database (llx_spacart_cart / llx_spacart_cart_item)
- */
+function func_get_max_cartid() {
+	global $cart;
 
-/**
- * Get or create a cart for the current session
- */
-function spacart_get_or_create_cart($sessionId = '', $customerId = 0)
-{
-    global $db;
+	if (empty($cart['products']))
+		return 0;
+	else {
+		$ids = array();
+		foreach ($cart['products'] as $v)
+			$ids[] = $v['cartid'];
 
-    $cart = null;
-
-    // Try to find existing cart by customer
-    if ($customerId > 0) {
-        $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."spacart_cart";
-        $sql .= " WHERE fk_customer = ".(int) $customerId;
-        $sql .= " AND status = 'active'";
-        $sql .= " ORDER BY tms DESC LIMIT 1";
-        $resql = $db->query($sql);
-        if ($resql && $db->num_rows($resql)) {
-            $obj = $db->fetch_object($resql);
-            $cart = spacart_load_cart($obj->rowid);
-        }
-    }
-
-    // Try by session
-    if (!$cart && $sessionId) {
-        $sql = "SELECT rowid FROM ".MAIN_DB_PREFIX."spacart_cart";
-        $sql .= " WHERE session_id = '".$db->escape($sessionId)."'";
-        $sql .= " AND status = 'active'";
-        $sql .= " ORDER BY tms DESC LIMIT 1";
-        $resql = $db->query($sql);
-        if ($resql && $db->num_rows($resql)) {
-            $obj = $db->fetch_object($resql);
-            $cart = spacart_load_cart($obj->rowid);
-        }
-    }
-
-    // Create new
-    if (!$cart) {
-        $sql = "INSERT INTO ".MAIN_DB_PREFIX."spacart_cart";
-        $sql .= " (session_id, fk_customer, status, date_creation, tms)";
-        $sql .= " VALUES ('".$db->escape($sessionId)."', ".(int) $customerId.", 'active', NOW(), NOW())";
-        $db->query($sql);
-        $cartId = $db->last_insert_id(MAIN_DB_PREFIX."spacart_cart");
-        $cart = spacart_load_cart($cartId);
-    }
-
-    return $cart;
+		return max($ids);
+	}
 }
 
-/**
- * Load cart with all items
- */
-function spacart_load_cart($cartId)
-{
-    global $db;
+function func_calculate() {
+	global $db, $cart;
 
-    $sql = "SELECT c.rowid, c.session_id, c.fk_customer, c.fk_soc, c.status,";
-    $sql .= " c.coupon_code, c.coupon_discount, c.giftcard_code, c.giftcard_amount,";
-    $sql .= " c.shipping_method, c.shipping_cost, c.tax_amount,";
-    $sql .= " c.subtotal, c.total, c.date_creation, c.tms";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_cart c";
-    $sql .= " WHERE c.rowid = ".(int) $cartId;
+	$subtotal = 0;
+	foreach ($cart['products'] as $k=>$v) {
+		if ($v['gift_card']) {
+			$subtotal_gc += $v['amount'];
+			$subtotal += $v['amount'];
+			continue;
+		}
 
-    $resql = $db->query($sql);
-    if (!$resql || !$db->num_rows($resql)) return null;
+		if ($v['options']) {
+			$v['variantid'] = func_get_variantid($v['options'], $v['productid']);
+		}
 
-    $cart = $db->fetch_object($resql);
-    $cart->items = spacart_get_cart_items($cartId);
-    $cart->count = 0;
+		$v = array_merge($v, func_select_product($v['productid'], $v['variantid'], $v['quantity']));
 
-    foreach ($cart->items as $item) {
-        $cart->count += (int) $item->qty;
-    }
+		if ($v['options']) {
+			$product_options = array();
+			$original_price = $v['price'];
+			$original_weight = $v['weight'];
+			foreach ($v['options'] as $g=>$o) {
+				$group = $db->row("SELECT * FROM option_groups WHERE groupid='".addslashes($g)."'");
+				if ($group['view_type'] == 't' || $group['view_type'] == 'i') {
+					$product_options[$g] = $group;
+					$product_options[$g]['option'] = array('name' => $o);
+				} else {
+					$product_options[$g] = $group;
+					$o = $db->row("SELECT * FROM options WHERE optionid='".addslashes($o)."'");;
+					$product_options[$g]['option'] = $o;
+					if (!$group['variant']) {
+						if ($o['price_modifier_type'] == '$')
+							$v['price'] += $o['price_modifier'];
+						else
+							$v['price'] += $original_price * $o['price_modifier'] / 100;
 
-    return $cart;
+						if ($o['weight_modifier_type'] == '$')
+							$v['weight'] += $o['weight_modifier'];
+						else
+							$v['weight'] += $o['weight_modifier'] * $original_weight / 100;
+					}
+				}
+			}
+
+			$v['price'] = $v['price'];
+			$v['weight'] = $v['weight'];
+			$v['product_options'] = $product_options;
+		}
+
+		$cart['products'][$k] = $v;
+		$subtotal += $v['price'] * $v['quantity'];
+		$subtotal_taxed += $v['price'] * $v['quantity'];
+	}
+
+	if ($cart['coupon']) {
+		if ($cart['coupon']['discount_type'] == 'A')
+			$cart['coupon_discount']= $cart['coupon']['discount'];
+		else
+			$cart['coupon_discount']=  $subtotal * $cart['coupon']['discount'] / 100;
+	}
+
+	$cart['subtotal'] = $subtotal;
+
+	if ($cart['coupon']) {
+		$cart['discounted_subtotal'] = $cart['subtotal'] - $cart['coupon_discount'];
+	} else
+		$cart['discounted_subtotal'] = $cart['subtotal'];
+
+	if ($cart['gift_card']) {
+	} else {
+		unset($cart['shipping_cost_gc']);
+		unset($cart['gc_left']);
+		unset($cart['gc_discount']);
+		unset($cart['gc']);
+	}
+
+	$cart['subtotal_taxed'] = $subtotal_taxed;
+
+	$cart['total'] = $cart['discounted_subtotal'];
+
+	return func_normilze_cart($cart);
 }
 
-/**
- * Get cart items
- */
-function spacart_get_cart_items($cartId)
-{
-    global $db;
-    $items = array();
+function func_normilze_cart($cart) {
+	global $db;
+	$found = array();
+	$new_products = array();
+	foreach ($cart['products'] as $k=>$v) {
+		if ($v['gift_card']) {
+			$new_products[] = $v;
+			continue;
+		}
 
-    $sql = "SELECT ci.rowid, ci.fk_cart, ci.fk_product, ci.fk_variant, ci.options_json,";
-    $sql .= " ci.qty, ci.price_ht, ci.price_ttc, ci.tva_tx, ci.label, ci.ref,";
-    $sql .= " ci.weight, ci.date_creation,";
-    $sql .= " p.label as product_label, p.ref as product_ref, p.stock_reel";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_cart_item ci";
-    $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product p ON p.rowid = ci.fk_product";
-    $sql .= " WHERE ci.fk_cart = ".(int) $cartId;
-    $sql .= " ORDER BY ci.date_creation ASC";
+		$product = $db->field("SELECT productid FROM products WHERE productid='".$v['productid']."' AND status IN (1,3)");
+		if (!$product)
+			continue;
 
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            $obj->label = $obj->label ?: $obj->product_label;
-            $obj->ref = $obj->ref ?: $obj->product_ref;
-            $obj->options = $obj->options_json ? json_decode($obj->options_json, true) : array();
-            $items[] = $obj;
-        }
-    }
-    return $items;
+		$key = $v['productid'].serialize($v['options']);
+		if (in_array($key, $found))
+			$new_products[$key]['quantity'] += $v['quantity'];
+		else {
+			$found[] = $key;
+			$new_products[$key] = $v;
+		}
+	}
+
+	$cart['products'] = array();
+	foreach ($new_products as $v)
+		$cart['products'][] = $v;
+
+	return $cart;
 }
 
-/**
- * Add item to cart
- */
-function spacart_cart_add($cartId, $productId, $qty = 1, $variantId = 0, $options = array())
-{
-    global $db;
+function func_cart_calculations($userinfo) {
+	global $db, $cart, $config, $_SESSION, $userinfo;
 
-    // Load product info
-    $sql = "SELECT rowid, ref, label, price, price_ttc, tva_tx, weight, stock_reel";
-    $sql .= " FROM ".MAIN_DB_PREFIX."product WHERE rowid = ".(int) $productId;
-    $resql = $db->query($sql);
-    if (!$resql || !$db->num_rows($resql)) {
-        return array('success' => false, 'message' => 'Produit introuvable');
-    }
-    $product = $db->fetch_object($resql);
+	$return = array();
+	$customer_zone = 0;
+	$zones = $db->column("SELECT z.zoneid FROM zones z, zone_element e WHERE z.zoneid=e.zoneid AND e.field='".$userinfo['country']."' AND e.field_type='C' GROUP BY e.zoneid");
+	if ($zones) {
+		foreach ($zones as $zoneid) {
+			$found = false;
+			$state_found = false;
+			# Check for state
+			$zone_states = $db->column("SELECT field FROM zone_element WHERE zoneid='$zoneid' AND field_type='S' GROUP BY field");
+			if (!$zone_states || in_array($userinfo['country'].'_'.$userinfo['state'], $zone_states))
+				$found = true;
+			else
+				$found = false;
 
-    $price = (float) $product->price;
-    $priceTtc = (float) $product->price_ttc;
-    $tvaTx = (float) $product->tva_tx;
-    $weight = (float) $product->weight;
-    $label = $product->label;
-    $ref = $product->ref;
+			# Check for city
+			if ($found) {
+				$zone_cities = $db->column("SELECT field FROM zone_element WHERE zoneid='$zoneid' AND field_type='T' GROUP BY field");
+				if (!$zone_cities)
+					$found = true;
+				else {
+					$city_found = false;
+					foreach ($zone_cities as $city) {
+						if (strstr($city, '%'))
+							$city = str_replace('%', '', $city);
 
-    // Variant override
-    if ($variantId > 0) {
-        $sqlv = "SELECT rowid, label as vlabel, sku, price as vprice, weight as vweight, stock";
-        $sqlv .= " FROM ".MAIN_DB_PREFIX."spacart_variant";
-        $sqlv .= " WHERE rowid = ".(int) $variantId." AND fk_product = ".(int) $productId;
-        $resv = $db->query($sqlv);
-        if ($resv && $db->num_rows($resv)) {
-            $variant = $db->fetch_object($resv);
-            if ($variant->vprice > 0) $price = (float) $variant->vprice;
-            if ($variant->vweight > 0) $weight = (float) $variant->vweight;
-            if ($variant->sku) $ref = $variant->sku;
-            if ($variant->vlabel) $label .= ' - '.$variant->vlabel;
-        }
-    }
+						if (strstr($userinfo['city'], $city)) {
+							$city_found = true;
+							break;
+						}
+					}
 
-    // Options price modifiers
-    $optionsJson = '';
-    if (!empty($options)) {
-        $optDetails = array();
-        foreach ($options as $groupId => $optionId) {
-            $sqlo = "SELECT o.label, o.price_modifier, o.price_modifier_type, o.weight_modifier,";
-            $sqlo .= " og.label as group_label";
-            $sqlo .= " FROM ".MAIN_DB_PREFIX."spacart_option o";
-            $sqlo .= " INNER JOIN ".MAIN_DB_PREFIX."spacart_option_group og ON og.rowid = o.fk_option_group";
-            $sqlo .= " WHERE o.rowid = ".(int) $optionId;
-            $reso = $db->query($sqlo);
-            if ($reso && $db->num_rows($reso)) {
-                $opt = $db->fetch_object($reso);
-                if ($opt->price_modifier_type === 'percent') {
-                    $price += $price * (float) $opt->price_modifier / 100;
-                } else {
-                    $price += (float) $opt->price_modifier;
-                }
-                $weight += (float) $opt->weight_modifier;
-                $optDetails[] = array(
-                    'group_id' => (int) $groupId,
-                    'option_id' => (int) $optionId,
-                    'group_label' => $opt->group_label,
-                    'option_label' => $opt->label
-                );
-            }
-        }
-        $optionsJson = json_encode($optDetails);
-    }
+					if ($city_found)
+						$found = true;
+					else
+						$found = false;
+				}
+			}
 
-    // Recalculate TTC
-    $priceTtc = $price * (1 + $tvaTx / 100);
+			# Check for zipcode
+			if ($found) {
+				$zone_zipcodes = $db->column("SELECT field FROM zone_element WHERE zoneid='$zoneid' AND field_type='Z' GROUP BY field");
+				if (!$zone_zipcodes)
+					$found = true;
+				else {
+					$zip_found = false;
+					foreach ($zone_zipcodes as $zip) {
+						if (strstr($zip, '%'))
+							$zip = str_replace('%', '', $zip);
 
-    // Check if same item already in cart
-    $existingId = 0;
-    $sqlCheck = "SELECT rowid, qty FROM ".MAIN_DB_PREFIX."spacart_cart_item";
-    $sqlCheck .= " WHERE fk_cart = ".(int) $cartId;
-    $sqlCheck .= " AND fk_product = ".(int) $productId;
-    $sqlCheck .= " AND COALESCE(fk_variant, 0) = ".(int) $variantId;
-    if ($optionsJson) {
-        $sqlCheck .= " AND options_json = '".$db->escape($optionsJson)."'";
-    } else {
-        $sqlCheck .= " AND (options_json IS NULL OR options_json = '')";
-    }
-    $resCheck = $db->query($sqlCheck);
-    if ($resCheck && $db->num_rows($resCheck)) {
-        $existing = $db->fetch_object($resCheck);
-        $existingId = $existing->rowid;
-        $newQty = (int) $existing->qty + (int) $qty;
+						if (strstr($userinfo['zipcode'], $zip)) {
+							$zip_found = true;
+							break;
+						}
+					}
 
-        $sqlUp = "UPDATE ".MAIN_DB_PREFIX."spacart_cart_item";
-        $sqlUp .= " SET qty = ".(int) $newQty.", tms = NOW()";
-        $sqlUp .= " WHERE rowid = ".(int) $existingId;
-        $db->query($sqlUp);
-    } else {
-        $sqlIns = "INSERT INTO ".MAIN_DB_PREFIX."spacart_cart_item";
-        $sqlIns .= " (fk_cart, fk_product, fk_variant, options_json, qty, price_ht, price_ttc,";
-        $sqlIns .= " tva_tx, label, ref, weight, date_creation, tms)";
-        $sqlIns .= " VALUES (".(int) $cartId.", ".(int) $productId.", ".($variantId ? (int) $variantId : 'NULL').",";
-        $sqlIns .= " ".($optionsJson ? "'".$db->escape($optionsJson)."'" : "NULL").",";
-        $sqlIns .= " ".(int) $qty.", ".(float) $price.", ".(float) $priceTtc.",";
-        $sqlIns .= " ".(float) $tvaTx.", '".$db->escape($label)."', '".$db->escape($ref)."',";
-        $sqlIns .= " ".(float) $weight.", NOW(), NOW())";
-        $db->query($sqlIns);
-    }
+					if ($zip_found)
+						$found = true;
+					else
+						$found = false;
+				}
+			}
 
-    // Recalculate totals
-    spacart_recalculate_cart($cartId);
+			if ($found) {
+				$customer_zone = $zoneid;
+				break;
+			}
+		}
+	}
 
-    return array('success' => true, 'message' => 'Produit ajouté au panier');
-}
+	global $warehouse_enabled;
+	if ($warehouse_enabled && $cart['products']) {
+		$local_pickup = true;
+		$warehouses = $db->all("SELECT * FROM warehouses WHERE enabled=1 ORDER BY pos");
+		$good_warehouses = array();
+		if ($warehouses) {
+			foreach ($warehouses as $k=>$v) {
+				$good = true;
+				foreach ($cart['products'] as $k2=>$v2) {
+					$variantid = $v2['variantid'] ? $v2['variantid'] :0 ;
+					$in_wh_avail = $db->field("SELECT avail FROM product_inventory WHERE wid='$v[wid]' AND productid='$v2[productid]' AND variantid='".$variantid."'");
+					if ($v2['avail_block'])
+						$in_wh_avail -= $v2['avail_block'];
 
-/**
- * Update cart item quantity
- */
-function spacart_cart_update_qty($cartId, $itemId, $qty)
-{
-    global $db;
+					if ($in_wh_avail < $v2['quantity']) {
+						$good = false;
+						break;
+					}
+				}
 
-    $qty = max(0, (int) $qty);
+				if ($good) {
+					$good_warehouses[] = $v;
+				}
+			}
+		}
 
-    if ($qty <= 0) {
-        return spacart_cart_remove_item($cartId, $itemId);
-    }
+		$cart['warehouses'] = $good_warehouses;
+		if ($good_warehouses) {
+			$cart['local_pickup'] = 1;
+		} else {
+			$cart['local_pickup'] = 0;
+		}
+	}
 
-    $sql = "UPDATE ".MAIN_DB_PREFIX."spacart_cart_item";
-    $sql .= " SET qty = ".(int) $qty.", tms = NOW()";
-    $sql .= " WHERE rowid = ".(int) $itemId." AND fk_cart = ".(int) $cartId;
-    $db->query($sql);
+	$need_shipping = 0;
+	foreach ($cart['products'] as $v)
+		if (!$v['gift_card'] && (!isset($v['product_type']) || $v['product_type'] != 1))
+			$need_shipping = 1;
 
-    spacart_recalculate_cart($cartId);
+	$destination = $userinfo['country'] == $config['Company']['location_country'] ? 'N' : 'I';
+	if ($need_shipping)
+		$shipping_methods = $db->all("SELECT * FROM shipping WHERE active='Y' AND destination='$destination' ORDER BY orderby");
 
-    return array('success' => true, 'message' => 'Quantité mise à jour');
-}
+	$cart['need_shipping'] = $need_shipping;
+	if ($shipping_methods) {
+		$weight = 0;
+		$items_count = 0;
+		foreach ($cart['products'] as $v)
+			$items_count += $v['quantity'];
 
-/**
- * Remove item from cart
- */
-function spacart_cart_remove_item($cartId, $itemId)
-{
-    global $db;
+		foreach ($cart['products'] as $v) {
+			$weight += $v['weight'] * $v['quantity'];
+		}
 
-    $sql = "DELETE FROM ".MAIN_DB_PREFIX."spacart_cart_item";
-    $sql .= " WHERE rowid = ".(int) $itemId." AND fk_cart = ".(int) $cartId;
-    $db->query($sql);
+		foreach ($shipping_methods as $k=>$v) {
+			$rate = $db->row("SELECT * FROM shipping_rates WHERE shippingid='$v[shippingid]' AND zoneid='$customer_zone' AND mintotal<='".$cart['subtotal']."' AND maxtotal>='".$cart['subtotal']."' AND minweight<='$weight' AND maxweight>='$weight' ORDER BY rate");
+			if ($rate) {
+				$rate_value = $rate['rate'];
+				if ($rate['rate_p'])
+					$rate_value += $cart['subtotal'] * $rate['rate_p'] / 100;
 
-    spacart_recalculate_cart($cartId);
+				if ($rate['weight_rate'])
+					$rate_value += $weight * $rate['weight_rate'];
 
-    return array('success' => true, 'message' => 'Produit retiré du panier');
-}
+				if ($rate['item_rate'])
+					$rate_value += $items_count * $rate['item_rate'];
 
-/**
- * Recalculate cart totals
- */
-function spacart_recalculate_cart($cartId)
-{
-    global $db;
+				$shipping_methods[$k]['rate'] = $rate_value;
+			} else
+				unset($shipping_methods[$k]);
+		}
 
-    // Calculate subtotal
-    $sql = "SELECT SUM(price_ht * qty) as subtotal_ht, SUM(price_ttc * qty) as subtotal_ttc,";
-    $sql .= " SUM((price_ttc - price_ht) * qty) as tax_total";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_cart_item";
-    $sql .= " WHERE fk_cart = ".(int) $cartId;
-    $resql = $db->query($sql);
+		if ($shipping_methods) {
+			if (!$cart['shippingid'])
+				$cart['shippingid'] = $shipping_methods[0]['shippingid'];
 
-    $subtotal = 0;
-    $taxAmount = 0;
-    if ($resql) {
-        $obj = $db->fetch_object($resql);
-        $subtotal = (float) $obj->subtotal_ht;
-        $taxAmount = (float) $obj->tax_total;
-    }
+			$return['shipping_methods'] = $shipping_methods;
 
-    // Get current cart for coupon/shipping info
-    $sqlCart = "SELECT coupon_discount, giftcard_amount, shipping_cost FROM ".MAIN_DB_PREFIX."spacart_cart WHERE rowid = ".(int) $cartId;
-    $resCart = $db->query($sqlCart);
-    $cartInfo = $resCart ? $db->fetch_object($resCart) : null;
+			if ($cart['shippingid'] != 'L') {
+				$found = false;
+				foreach ($shipping_methods as $v)
+					if ($v['shippingid'] == $cart['shippingid']) {
+						$cart['shipping_cost'] = $v['rate'];
+						$found = true;
+					}
 
-    $couponDiscount = $cartInfo ? (float) $cartInfo->coupon_discount : 0;
-    $giftcardAmount = $cartInfo ? (float) $cartInfo->giftcard_amount : 0;
-    $shippingCost = $cartInfo ? (float) $cartInfo->shipping_cost : 0;
+				if (!$found) {
+					$cart['shippingid'] = $shipping_methods[0]['shippingid'];
+					$cart['shipping_cost'] = $shipping_methods[0]['rate'];
+				}
+			}
+		} else
+			$cart['shippingid'] = $cart['shipping_cost'] = 0;
 
-    $total = $subtotal + $taxAmount + $shippingCost - $couponDiscount - $giftcardAmount;
-    if ($total < 0) $total = 0;
+		if ($cart['shippingid'] == 'L')
+			$cart['shipping_cost'] = 0;
+	} elseif ($cart['shippingid'] == 'L')
+		$cart['shipping_cost'] = 0;
+	else
+		$cart['shippingid'] = $cart['shipping_cost'] = 0;
 
-    $sqlUpdate = "UPDATE ".MAIN_DB_PREFIX."spacart_cart";
-    $sqlUpdate .= " SET subtotal = ".(float) $subtotal.",";
-    $sqlUpdate .= " tax_amount = ".(float) $taxAmount.",";
-    $sqlUpdate .= " total = ".(float) $total.",";
-    $sqlUpdate .= " tms = NOW()";
-    $sqlUpdate .= " WHERE rowid = ".(int) $cartId;
-    $db->query($sqlUpdate);
-}
+	$cart['total'] += $cart['shipping_cost'];
+	$tax = $db->row("SELECT * FROM taxes WHERE active='Y'");
+	if ($tax) {
+		$tax_rate = $db->row("SELECT r.* FROM tax_rates r LEFT JOIN tax_rate_memberships m ON m.rateid=r.rateid WHERE (m.membershipid IS NULL OR m.membershipid='".$userinfo['membershipid']."') AND r.zoneid='$customer_zone' AND r.taxid='$tax[taxid]' ORDER BY r.rate_value");
+		if ($tax_rate) {
+			$cart['tax_details'] = $tax;
+			if ($tax_rate['rate_type'] == '%') {
+				$tax_value = $cart['subtotal'] * $tax_rate['rate_value'] / 100;
+			} else
+				$tax_value = $tax_rate['rate_value'];
 
-/**
- * Apply coupon code to cart
- */
-function spacart_cart_apply_coupon($cartId, $code)
-{
-    global $db;
+			if ($tax_rate['shipping'] && $tax_rate['rate_type'] == '%')
+				$tax_value += $cart['shipping_cost'] * $tax_rate['rate_value'] / 100;
 
-    // Check coupon exists and is valid
-    $sql = "SELECT rowid, code, type, value, min_order, max_uses, current_uses,";
-    $sql .= " date_start, date_end, active";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_coupon";
-    $sql .= " WHERE code = '".$db->escape($code)."' AND active = 1";
-    $resql = $db->query($sql);
+			$cart['tax'] = $tax_value;
+		} else
+			$cart['tax'] = 0;
+	} else {
+		$cart['tax_details'] = array();
+		$cart['tax'] = 0;
+	}
 
-    if (!$resql || !$db->num_rows($resql)) {
-        return array('success' => false, 'message' => 'Code promo invalide');
-    }
+	$cart['total'] += $cart['tax'];
+	if ($cart['gift_card']) {
+		$old_total = $cart['total'];
+		$cart['total'] -= $cart['gc']['amount_left'];
+		if ($cart['total'] < 0)
+			$cart['total'] = 0;
 
-    $coupon = $db->fetch_object($resql);
+		$cart['gc_discount'] = $old_total - $cart['total'];
+	}
 
-    // Check dates
-    if ($coupon->date_start && strtotime($coupon->date_start) > time()) {
-        return array('success' => false, 'message' => 'Ce code promo n\'est pas encore actif');
-    }
-    if ($coupon->date_end && strtotime($coupon->date_end) < time()) {
-        return array('success' => false, 'message' => 'Ce code promo a expiré');
-    }
+	$payment_methods = $db->all("SELECT * FROM payment_methods WHERE enabled=1 ORDER BY orderby");
+	$return['payment_methods'] = $payment_methods;
 
-    // Check max uses
-    if ($coupon->max_uses > 0 && $coupon->current_uses >= $coupon->max_uses) {
-        return array('success' => false, 'message' => 'Ce code promo a atteint sa limite d\'utilisation');
-    }
+	$cart['paymentid'] = $payment_methods[0]['paymentid'];
 
-    // Check min order
-    $cart = spacart_load_cart($cartId);
-    if ($coupon->min_order > 0 && $cart->subtotal < $coupon->min_order) {
-        return array('success' => false, 'message' => 'Montant minimum de commande non atteint ('.spacartFormatPrice($coupon->min_order).')');
-    }
-
-    // Calculate discount
-    $discount = 0;
-    if ($coupon->type === 'percent') {
-        $discount = $cart->subtotal * (float) $coupon->value / 100;
-    } else {
-        $discount = (float) $coupon->value;
-    }
-
-    // Don't exceed cart total
-    if ($discount > $cart->subtotal) {
-        $discount = $cart->subtotal;
-    }
-
-    // Apply
-    $sqlUp = "UPDATE ".MAIN_DB_PREFIX."spacart_cart";
-    $sqlUp .= " SET coupon_code = '".$db->escape($code)."',";
-    $sqlUp .= " coupon_discount = ".(float) $discount.",";
-    $sqlUp .= " tms = NOW()";
-    $sqlUp .= " WHERE rowid = ".(int) $cartId;
-    $db->query($sqlUp);
-
-    spacart_recalculate_cart($cartId);
-
-    return array('success' => true, 'message' => 'Code promo appliqué ! -'.spacartFormatPrice($discount));
-}
-
-/**
- * Apply gift card code to cart
- */
-function spacart_cart_apply_giftcard($cartId, $code)
-{
-    global $db;
-
-    $sql = "SELECT rowid, code, initial_amount, balance, active, date_expiry";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_giftcard";
-    $sql .= " WHERE code = '".$db->escape($code)."' AND active = 1";
-    $resql = $db->query($sql);
-
-    if (!$resql || !$db->num_rows($resql)) {
-        return array('success' => false, 'message' => 'Carte cadeau invalide');
-    }
-
-    $gc = $db->fetch_object($resql);
-
-    if ($gc->date_expiry && strtotime($gc->date_expiry) < time()) {
-        return array('success' => false, 'message' => 'Cette carte cadeau a expiré');
-    }
-
-    if ($gc->balance <= 0) {
-        return array('success' => false, 'message' => 'Le solde de cette carte est épuisé');
-    }
-
-    $cart = spacart_load_cart($cartId);
-    $amount = min((float) $gc->balance, (float) $cart->total);
-
-    $sqlUp = "UPDATE ".MAIN_DB_PREFIX."spacart_cart";
-    $sqlUp .= " SET giftcard_code = '".$db->escape($code)."',";
-    $sqlUp .= " giftcard_amount = ".(float) $amount.",";
-    $sqlUp .= " tms = NOW()";
-    $sqlUp .= " WHERE rowid = ".(int) $cartId;
-    $db->query($sqlUp);
-
-    spacart_recalculate_cart($cartId);
-
-    return array('success' => true, 'message' => 'Carte cadeau appliquée ! -'.spacartFormatPrice($amount).' (solde: '.spacartFormatPrice($gc->balance - $amount).')');
-}
-
-/**
- * Merge anonymous cart into customer cart after login
- */
-function spacart_merge_carts($anonymousCartId, $customerCartId)
-{
-    global $db;
-
-    // Get items from anonymous cart
-    $items = spacart_get_cart_items($anonymousCartId);
-
-    foreach ($items as $item) {
-        spacart_cart_add(
-            $customerCartId,
-            $item->fk_product,
-            $item->qty,
-            $item->fk_variant ?: 0,
-            $item->options
-        );
-    }
-
-    // Deactivate anonymous cart
-    $sql = "UPDATE ".MAIN_DB_PREFIX."spacart_cart SET status = 'merged' WHERE rowid = ".(int) $anonymousCartId;
-    $db->query($sql);
-}
-
-/**
- * Clear cart (after order)
- */
-function spacart_clear_cart($cartId)
-{
-    global $db;
-
-    $db->query("DELETE FROM ".MAIN_DB_PREFIX."spacart_cart_item WHERE fk_cart = ".(int) $cartId);
-    $sql = "UPDATE ".MAIN_DB_PREFIX."spacart_cart";
-    $sql .= " SET status = 'completed', subtotal = 0, total = 0, tax_amount = 0,";
-    $sql .= " shipping_cost = 0, coupon_code = NULL, coupon_discount = 0,";
-    $sql .= " giftcard_code = NULL, giftcard_amount = 0, tms = NOW()";
-    $sql .= " WHERE rowid = ".(int) $cartId;
-    $db->query($sql);
-}
-
-/**
- * Get cart summary (for badge/minicart)
- */
-function spacart_get_cart_summary($cartId)
-{
-    global $db;
-
-    $sql = "SELECT COUNT(*) as item_count, SUM(qty) as total_qty, SUM(price_ht * qty) as subtotal";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_cart_item";
-    $sql .= " WHERE fk_cart = ".(int) $cartId;
-    $resql = $db->query($sql);
-
-    if ($resql) {
-        $obj = $db->fetch_object($resql);
-        return array(
-            'count' => (int) $obj->total_qty,
-            'subtotal' => (float) $obj->subtotal
-        );
-    }
-    return array('count' => 0, 'subtotal' => 0);
+	$_SESSION['cart'] = $return['cart'] = $cart;
+	return $return;
 }

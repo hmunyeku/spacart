@@ -1,42 +1,29 @@
-<!-- Login Page -->
-<div class="spacart-auth-card card">
-    <div class="card-content">
-        <h4><i class="material-icons left">login</i>Connexion</h4>
+<h1>{lng[Login]}</h1>
+<table class="login_table">
+<tr>
+ <td valign="top">
+<form name="login" method="POST" action="/login">
+{php echo spacart_csrf_field();}
 
-        <form id="spacart-login-form">
-            <div class="input-field">
-                <i class="material-icons prefix">email</i>
-                <input type="email" name="email" id="login-email" required>
-                <label for="login-email">Email</label>
-            </div>
-
-            <div class="input-field">
-                <i class="material-icons prefix">lock</i>
-                <input type="password" name="password" id="login-password" required>
-                <label for="login-password">Mot de passe</label>
-            </div>
-
-            <p>
-                <label>
-                    <input type="checkbox" name="remember" class="filled-in">
-                    <span>Se souvenir de moi</span>
-                </label>
-            </p>
-
-            <button type="submit" class="btn btn-large" style="width:100%;">
-                <i class="material-icons left">login</i>Se connecter
-            </button>
-        </form>
-
-        <div class="spacart-auth-divider">
-            <span>ou</span>
-        </div>
-
-        <div class="center-align">
-            <p>Pas encore de compte ?</p>
-            <a href="#/register" class="btn btn-flat spacart-spa-link">
-                <i class="material-icons left">person_add</i>Créer un compte
-            </a>
-        </div>
+    <div class="group">
+      <input class="email" required type="text" name="email" value="{if $_POST['email']}{php echo escape($_POST['email'], 2);}{/if}" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Email]}</label>
     </div>
-</div>
+<div class="register-email-error" style="display:none">{lng[Invalid email or password]}. <a href="/register" onclick="return register_popup();" class="register ajax_mobile_link">{lng[Create new user]}</a></div>
+    <div class="group">
+      <input type="password" required name="password" value="" />
+      <span class="highlight"></span>
+      <span class="bar"></span>
+      <label>{lng[Password]}</label>
+    </div>
+<div class="register-email-error-2" style="display:none">{lng[Invalid email or password]}. <a href="javascript: void(0);" onclick="return restore_password()">{lng[Recover password]}</a></div>
+
+<button type="button">{lng[Login]}</button> &nbsp; <a href="/register" onclick="return register_popup();" class="main-button register ajax_mobile_link">{lng[Register]}</a>
+<br /><br />
+<a href="javascript: void(0);" class="main-button nowrap" onclick="return restore_password()">{lng[Password recovery]}</a></td>
+</form>
+ </td>
+</tr>
+</table>

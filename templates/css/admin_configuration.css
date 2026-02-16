@@ -1,0 +1,13 @@
+.configuration {	width: 100%;}
+.configuration td {	vertical-align: middle;}
+.configuration .name {	width: 400px;
+	text-align: right;
+	padding: 5px 15px 5px;
+	font-size: 12px;
+}
+.configuration input[type="text"], .configuration input[type="password"], .configuration select {	width: 300px;
+}
+.configuration textarea {
+	width: 300px;
+	height: 100px;
+}

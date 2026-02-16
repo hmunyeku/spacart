@@ -1,0 +1,1 @@
+function submitTaxForm(name) {	if (name == 'rate') {		if (!$('[name="rate_value"]').val()) {			func_highlight($('[name="rate_value"]'));			return false;		}	} else {		if (!$('[name="tax_service_name"]').val()) {			func_highlight($('[name="tax_service_name"]'));			return false;		}	}	return true;}

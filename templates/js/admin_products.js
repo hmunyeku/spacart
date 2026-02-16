@@ -1,0 +1,1 @@
+(function($) {"use strict";	$('.collapse').on('click', function() {		var i = $(this).attr('id'),			c = $('#'+i+'_content');		if (c.is(':visible')) {			$(this).removeClass('minus');			c.hide();		} else {			$(this).addClass('minus');			c.show();		}	});})($);

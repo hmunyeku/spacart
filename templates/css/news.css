@@ -1,0 +1,88 @@
+.news-list h2 {	font-size: 22px;
+	padding: 15px 0;
+	margin: -10px 0 5px 0;}
+.news-list h5 {
+	font-size: 16px;
+	font-weight: 500;
+	padding: 5px 0 10px 0;
+	margin: 10px 0 5px 0;
+}
+.news-item img {	float: left;
+	margin: 0 20px 20px 0;
+	border-radius: 25px;}
+.news-more {	float: right;}
+.news-content {	position: relative;}
+.news-content h1 {
+	padding: 5px 0 20px 0 !important;
+	margin: 0 0 0px 0 !important;
+}
+.news-search {	position: absolute;
+	top: 15px;
+	right: 0px;
+	width: 197px;
+	height: 26px;
+	background: url(/images/conf/news-search.gif);}
+.news-search input[type="text"] {	background: transparent;
+	width: 140px;
+	color: #807878;
+	font-size: 17px;
+	padding: 5px 10px;
+	border: 0px;}
+.news-search input[type="image"] {	position: absolute;
+	top: 0px;
+	right: 0px;
+	width: 30px;
+	height: 26px;}
+.news-table {	width: 100%;}
+.news-table td {	padding-top: 20px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid #737373;
+	vertical-align: top;}
+.news-table td.image {	width: 213px;
+}
+.news-table td.image div {	width: 213px;
+	height: 128px;
+	background-position: center center !important;}
+.news-table td.descr {	padding-left: 15px;
+	font-size: 17px;}
+.news-table td.descr div.date {	font-size: 17px;
+	padding: 0 0 5px 0;
+}
+.news-table td.descr p {	padding: 0;
+	margin: 0;}
+.news-table a.read-more {	font-size: 17px;}
+.news-content .nav-pages {	margin: 20px 0 0 0;}
+.news-content .prev-next {	float: right;
+	font-weight: bold;}
+.news-content .prev-next a {
+	text-decoration: none;
+}
+.news-loc {	padding: 10px 0 0 0;
+	font-size: 17px;}
+.news-loc a {	text-decoration: none;}
+.news-content h1.title {
+	padding: 25px 0 10px 0 !important;
+	margin: 0 0 0px 0 !important;
+	border: 0;
+	max-width: 600px;
+}
+.news-content .news {	position: relative;}
+.news-content .news .date {
+	position: absolute;
+	top: 25px;
+	right: 0px;
+	font-size: 17px;
+}
+.news-content .fulldescr {	font-size: 17px;
+	padding: 20px 0 0 0;
+}
+.news-content .fulldescr p {	font-size: 17px;}
+.news-content .back {	text-align: right;
+	padding: 50px 0 30px 0;
+}
+.news-content .back a {
+	font-weight: bold;
+}
+.news-content .back a:hover {
+	text-decoration: none;
+}

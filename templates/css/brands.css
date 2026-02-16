@@ -1,0 +1,16 @@
+.brands {	width: 100%;}
+.brands .brand {	float: left;	width: 205px;
+	height: 240px;
+	padding: 10px;
+	border: 1px solid #efefef;
+	margin: 0 20px 20px 0;
+	text-align: center;
+}
+.brands .brand img {	margin: 0 auto 10px auto;
+	clear: both;
+	display: block;
+}.brand_page img {	float: left;	margin: 0 10px 10px 0;
+}
+.brands .brand a {
+	text-decoration: none !important;
+}

@@ -1,9 +1,17 @@
-# Cache
-cache/
-*.cache
+# Backups
+*.bak
+*.bak.*
+*.old
+*.orig
 
-# Vendor (using Dolibarr's built-in SDKs)
-vendor/
+# Cache & temp
+var/cache/
+var/tmp/
+var/log/
+
+# User uploads
+files/
+photos/
 
 # IDE
 .idea/
@@ -15,8 +23,23 @@ vendor/
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
+# Old templates (archived)
+templates.old/
+pages.old/
+includes.old/
 
-# Environment
-.env
+# Build artifacts
+node_modules/
+
+# Legacy/migration scripts
+cleanup.php
+optimize.php
+reset.php
+migrate_spacart_tickets.php
+sync_photos.php
+
+# Vendored third-party payment libraries
+stripe/
+bt/
+ckeditor/
+materialize/

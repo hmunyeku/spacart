@@ -34,7 +34,7 @@ class modSpaCart extends DolibarrModules
 		$this->db = $db;
 
 		// Module ID (unique)
-		$this->numero = 500100;
+		$this->numero = 500150;
 
 		// Family
 		$this->family = "portal";
@@ -87,7 +87,7 @@ class modSpaCart extends DolibarrModules
 		$this->config_page_url = array("setup.php@spacart");
 
 		// Dependencies
-		$this->depends = array('modProduct', 'modCommande', 'modSociete');
+		$this->depends = array('modProduct', 'modCommande', 'modSociete', 'modMultiCurrency');
 		$this->requiredby = array();
 		$this->conflictwith = array();
 		$this->langfiles = array('spacart@spacart');
@@ -306,35 +306,35 @@ class modSpaCart extends DolibarrModules
 		$r = 0;
 
 		$r++;
-		$this->rights[$r][0] = 500101;
+		$this->rights[$r][0] = 500151;
 		$this->rights[$r][1] = 'Read SpaCart configuration and orders';
 		$this->rights[$r][2] = 'r';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'read';
 
 		$r++;
-		$this->rights[$r][0] = 500102;
+		$this->rights[$r][0] = 500152;
 		$this->rights[$r][1] = 'Manage SpaCart configuration';
 		$this->rights[$r][2] = 'w';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'admin';
 
 		$r++;
-		$this->rights[$r][0] = 500103;
+		$this->rights[$r][0] = 500153;
 		$this->rights[$r][1] = 'Manage SpaCart content (blog, news, pages)';
 		$this->rights[$r][2] = 'w';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'content';
 
 		$r++;
-		$this->rights[$r][0] = 500104;
+		$this->rights[$r][0] = 500154;
 		$this->rights[$r][1] = 'Manage SpaCart products (featured, variants, options)';
 		$this->rights[$r][2] = 'w';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'products';
 
 		$r++;
-		$this->rights[$r][0] = 500105;
+		$this->rights[$r][0] = 500155;
 		$this->rights[$r][1] = 'Manage SpaCart coupons and gift cards';
 		$this->rights[$r][2] = 'w';
 		$this->rights[$r][3] = 0;
@@ -530,6 +530,41 @@ class modSpaCart extends DolibarrModules
 			'unitfrequency' => 60,
 			'priority' => 50,
 			'status' => 0,
+			'test' => 'isModEnabled("spacart")',
+			'datestart' => null,
+			'dateend' => null,
+		);
+
+		$this->cronjobs[2] = array(
+			'label' => 'SpaCart - Mise a jour taux de change ECB',
+			'jobtype' => 'command',
+			'command' => 'php '.DOL_DOCUMENT_ROOT.'/custom/spacart/cron/currency_update.php',
+			'classesname' => '',
+			'methodename' => '',
+			'parameters' => '',
+			'comment' => 'Synchronise les taux de change depuis la BCE quotidiennement',
+			'frequency' => 1,
+			'unitfrequency' => 86400,
+			'priority' => 50,
+			'status' => 1,
+			'test' => 'isModEnabled("spacart")',
+			'datestart' => null,
+			'dateend' => null,
+		);
+
+
+		$this->cronjobs[3] = array(
+			'label' => 'SpaCart - Retry synchro Dolibarr',
+			'jobtype' => 'command',
+			'command' => 'php '.DOL_DOCUMENT_ROOT.'/custom/spacart/cron/dolibarr_sync_retry.php',
+			'classesname' => '',
+			'methodename' => '',
+			'parameters' => '',
+			'comment' => 'Retry failed SpaCart to Dolibarr sync (invoice, payment, stock)',
+			'frequency' => 15,
+			'unitfrequency' => 60,
+			'priority' => 50,
+			'status' => 1,
 			'test' => 'isModEnabled("spacart")',
 			'datestart' => null,
 			'dateend' => null,

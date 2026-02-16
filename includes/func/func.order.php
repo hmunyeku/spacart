@@ -1,331 +1,182 @@
 <?php
-/**
- * SpaCart - Order functions
- * Creates Dolibarr commandes from spacart checkout
- */
+function order_status($orderid, $status, $calculate_processed = false) {
+	global $db, $order_statuses, $template, $company_name, $company_email, $config;
+	$order = $db->row("SELECT * FROM orders WHERE orderid='".addslashes($orderid)."'");
+	if ($order['status'] == $status && !$calculate_processed)
+		return;
 
-/**
- * Create Dolibarr order from checkout
- */
-function spacart_create_order($cartId, $customerId, $checkoutData)
-{
-    global $db;
+	$order_info = func_orderinfo($orderid);
 
-    require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
-    require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
-    require_once DOL_DOCUMENT_ROOT.'/user/class/user.class.php';
-    require_once SPACART_PATH.'/includes/func/func.cart.php';
-    require_once SPACART_PATH.'/includes/func/func.user.php';
+	if (($status == 2 || $status == 3) && !$order_info['order']['gc_generated']) {
+		$userid = $order_info['order']['userid'];
+		foreach ($order_info['products'] as $k=>$v) {
+			if ($v['gift_card']) {
+				$db->query("INSERT INTO gift_cards SET gcid='".addslashes($v['gift_card'])."', userid='".$userid."', amount='".$v['price']."', amount_left='".$v['price']."', date='".time()."', status='Y'");
+			}
+		}
 
-    // Load cart
-    $cart = spacart_load_cart($cartId);
-    if (!$cart || empty($cart->items)) {
-        return array('success' => false, 'message' => 'Panier vide');
-    }
+		$db->query("UPDATE orders SET gc_generated=1 WHERE orderid='".addslashes($orderid)."'");
+		$order_info['order']['gc_generated'] = 1;
+	}
 
-    // Get or determine fk_soc
-    $fkSoc = 0;
-    if ($customerId) {
-        $customer = spacart_load_customer($customerId);
-        if ($customer) {
-            $fkSoc = (int) $customer->fk_soc;
-        }
-    }
+	$order = array_merge($order, $order_info['order']);
+	$old_status = $order['status'];
+	$order['status'] = $status;
+	$db->query("UPDATE orders SET status=".$status." WHERE orderid='".addslashes($orderid)."'");
+	// Sync status to Dolibarr llx_commande
+	$_dol_status_map = [1=>0, 2=>1, 3=>2, 4=>3, 5=>-1];
+	if (isset($_dol_status_map[$status])) {
+		$db->query("UPDATE llx_commande SET fk_statut=".$_dol_status_map[$status]." WHERE ref_ext='SPACART-".intval($orderid)."' AND entity=1");
+	}
+	$subject = $company_name.' :: Order status change #'.$orderid.' to "'.$order_statuses[$status].'"';
 
-    // Guest checkout: create a tiers
-    if (!$fkSoc) {
-        $firstname = $checkoutData['shipping_firstname'] ?? ($checkoutData['firstname'] ?? 'Client');
-        $lastname = $checkoutData['shipping_lastname'] ?? ($checkoutData['lastname'] ?? 'Web');
-        $email = $checkoutData['email'] ?? '';
-        $phone = $checkoutData['phone'] ?? '';
-        $company = $checkoutData['company'] ?? '';
+	$order_info = func_orderinfo($orderid);
+	$products = $order_info['products'];
+	if ($calculate_processed || (($status == 2 || $status == 3) && in_array($old_status, array(0, 1, 4)))) {
+		func_decrease_quantity($orderid);
+	} elseif ($status == 4 && in_array($old_status, array(2, 3))) {
+		func_increase_quantity($orderid);
+	}
 
-        $fkSoc = spacart_create_dolibarr_tiers($firstname, $lastname, $email, $phone, $company);
-        if (!$fkSoc) {
-            return array('success' => false, 'message' => 'Erreur création du client');
-        }
-
-        // Link to spacart customer if logged in
-        if ($customerId) {
-            $db->query("UPDATE ".MAIN_DB_PREFIX."spacart_customer SET fk_soc = ".(int) $fkSoc." WHERE rowid = ".(int) $customerId);
-        }
-    }
-
-    // Technical user for operations
-    $techUserId = getDolGlobalInt('SPACART_TECHNICAL_USER_ID', 1);
-    $techUser = new User($db);
-    $techUser->fetch($techUserId);
-
-    // Create commande
-    $commande = new Commande($db);
-    $commande->socid = $fkSoc;
-    $commande->date_commande = dol_now();
-    $commande->source = 0;
-    $commande->module_source = 'spacart';
-
-    // Set note with shipping address
-    $notePublic = '';
-    if (!empty($checkoutData['shipping_address'])) {
-        $notePublic .= "Adresse de livraison:\n";
-        $notePublic .= ($checkoutData['shipping_firstname'] ?? '').' '.($checkoutData['shipping_lastname'] ?? '')."\n";
-        $notePublic .= ($checkoutData['shipping_address'] ?? '')."\n";
-        $notePublic .= ($checkoutData['shipping_zip'] ?? '').' '.($checkoutData['shipping_city'] ?? '')."\n";
-        $notePublic .= ($checkoutData['shipping_phone'] ?? '')."\n";
-    }
-
-    $notePrivate = 'Commande SpaCart #'.$cartId;
-    if (!empty($checkoutData['payment_method'])) {
-        $notePrivate .= ' | Paiement: '.$checkoutData['payment_method'];
-    }
-    if (!empty($cart->coupon_code)) {
-        $notePrivate .= ' | Coupon: '.$cart->coupon_code.' (-'.spacartFormatPrice($cart->coupon_discount).')';
-    }
-
-    $commande->note_public = $notePublic;
-    $commande->note_private = $notePrivate;
-
-    $result = $commande->create($techUser);
-    if ($result <= 0) {
-        return array('success' => false, 'message' => 'Erreur création commande: '.$commande->error);
-    }
-
-    $orderId = $commande->id;
-
-    // Add order lines
-    foreach ($cart->items as $item) {
-        $commande->addline(
-            $item->label,              // desc
-            $item->price_ht,           // pu_ht
-            $item->qty,                // qty
-            $item->tva_tx,             // txtva
-            0,                         // txlocaltax1
-            0,                         // txlocaltax2
-            $item->fk_product,         // fk_product
-            0,                         // remise_percent
-            0,                         // info_bits
-            0,                         // fk_remise_except
-            'HT',                      // price_base_type
-            $item->price_ht,           // pu_ttc (recalculated)
-            0,                         // date_start
-            0                          // date_end
-        );
-    }
-
-    // Add shipping line if applicable
-    if ($cart->shipping_cost > 0) {
-        $commande->addline(
-            'Frais de livraison - '.($checkoutData['shipping_method_label'] ?? 'Standard'),
-            $cart->shipping_cost,
-            1,
-            20,  // Default TVA on shipping
-            0, 0, 0, 0, 0, 0, 'HT', 0, 0, 0
-        );
-    }
-
-    // Validate the order
-    $commande->valid($techUser);
-
-    // Save billing address to commande if different
-    if (!empty($checkoutData['billing_address']) && empty($checkoutData['same_billing'])) {
-        $noteBilling = "\n\nAdresse de facturation:\n";
-        $noteBilling .= ($checkoutData['billing_firstname'] ?? '').' '.($checkoutData['billing_lastname'] ?? '')."\n";
-        $noteBilling .= ($checkoutData['billing_address'] ?? '')."\n";
-        $noteBilling .= ($checkoutData['billing_zip'] ?? '').' '.($checkoutData['billing_city'] ?? '');
-        $commande->note_public .= $noteBilling;
-        $commande->update($techUser);
-    }
-
-    // Save addresses for customer
-    if ($customerId) {
-        spacart_save_checkout_addresses($customerId, $checkoutData);
-    }
-
-    // Update coupon usage
-    if (!empty($cart->coupon_code)) {
-        $db->query("UPDATE ".MAIN_DB_PREFIX."spacart_coupon SET current_uses = current_uses + 1 WHERE code = '".$db->escape($cart->coupon_code)."'");
-    }
-
-    // Debit gift card
-    if (!empty($cart->giftcard_code) && $cart->giftcard_amount > 0) {
-        $db->query("UPDATE ".MAIN_DB_PREFIX."spacart_giftcard SET balance = balance - ".(float) $cart->giftcard_amount." WHERE code = '".$db->escape($cart->giftcard_code)."'");
-    }
-
-    // Clear cart
-    spacart_clear_cart($cartId);
-
-    return array(
-        'success' => true,
-        'message' => 'Commande créée avec succès',
-        'order_id' => $orderId,
-        'order_ref' => $commande->ref
-    );
+	if (!$calculate_processed) {
+		$template['order'] = $order;
+		$template['products'] = $products;
+		$template['is_mail'] = 'Y';
+		$message = get_template_contents('invoice/body.php');
+		func_mail($order['firstname'].' '.$order['lastname'], $order['email'], $config['Company']['orders_department'], $subject, $message);
+	}
 }
 
-/**
- * Save checkout addresses as customer addresses
- */
-function spacart_save_checkout_addresses($customerId, $data)
-{
-    // Shipping address
-    if (!empty($data['shipping_address'])) {
-        spacart_save_address($customerId, array(
-            'type' => 'shipping',
-            'firstname' => $data['shipping_firstname'] ?? '',
-            'lastname' => $data['shipping_lastname'] ?? '',
-            'address' => $data['shipping_address'] ?? '',
-            'zip' => $data['shipping_zip'] ?? '',
-            'city' => $data['shipping_city'] ?? '',
-            'fk_country' => $data['shipping_country'] ?? 1,
-            'phone' => $data['shipping_phone'] ?? '',
-            'is_default' => 1
-        ));
-    }
+function func_orderinfo($orderid) {
+	global $db;
 
-    // Billing address (if different)
-    if (!empty($data['billing_address']) && empty($data['same_billing'])) {
-        spacart_save_address($customerId, array(
-            'type' => 'billing',
-            'firstname' => $data['billing_firstname'] ?? '',
-            'lastname' => $data['billing_lastname'] ?? '',
-            'address' => $data['billing_address'] ?? '',
-            'zip' => $data['billing_zip'] ?? '',
-            'city' => $data['billing_city'] ?? '',
-            'fk_country' => $data['billing_country'] ?? 1,
-            'phone' => $data['billing_phone'] ?? '',
-            'is_default' => 1
-        ));
-    }
+	q_load('product');
+
+	$order = $db->row("SELECT * FROM orders WHERE orderid='".addslashes($orderid)."'");
+	if (!$order)
+		return false;
+
+	$order['tax_details'] = unserialize($order['tax_details']);
+
+	$payment_method = $db->row("SELECT * FROM payment_methods WHERE paymentid='$order[paymentid]'");
+	$order['payment_method'] = $payment_method['name'];
+	$order['payment_details'] = $payment_method['details'];
+
+	$shipping_method = $db->row("SELECT * FROM shipping WHERE shippingid='$order[shippingid]'");
+	$order['shipping_method'] = $shipping_method;
+	if ($order['local_pickup'])
+		$order['warehouse'] = $db->row("SELECT * FROM warehouses WHERE wid='$order[wid]'");
+
+	$order['countryname'] = $db->field("SELECT country FROM countries WHERE code='".addslashes($order['country'])."'");
+	$order['statename'] = $db->field("SELECT state FROM states WHERE code='".addslashes($order['state'])."' AND country_code='".addslashes($order['country'])."'");
+	if (!$order['statename'])
+		$order['statename'] = $order['state'];
+
+	$order['b_countryname'] = $db->field("SELECT country FROM countries WHERE code='".addslashes($order['b_country'])."'");
+	$order['b_statename'] = $db->field("SELECT state FROM states WHERE code='".addslashes($order['b_state'])."' AND country_code='".addslashes($order['b_country'])."'");
+	if (!$order['b_statename'])
+		$order['b_statename'] = $order['b_state'];
+
+	$products = $db->all("SELECT * FROM order_items WHERE orderid='".$order['orderid']."'");
+	foreach ($products as $k=>$v) {
+		$v = array_merge($v, unserialize($v['extra']));
+		if (!$v['gift_card'])
+			$v = array_merge(func_select_product($v['productid'], $v['variantid'], $v['amount']), $v);
+
+		$products[$k] = $v;
+	}
+
+	$result = array(
+		'order' => $order,
+		'products' => $products
+	);
+
+	return $result;
 }
 
-/**
- * Get order detail for invoice page
- */
-function spacart_get_order_detail($orderId, $fkSoc = 0)
-{
-    global $db;
+function func_decrease_quantity($orderid) {
+	global $db;
 
-    require_once DOL_DOCUMENT_ROOT.'/commande/class/commande.class.php';
+	$order = $db->row("SELECT * FROM orders WHERE orderid='$orderid'");
+	if (!$order['gc_calc']) {
+		$gc = $db->row("SELECT * FROM gift_cards WHERE gcid='".addslashes($order['gift_card'])."'");
+		$db->query("UPDATE gift_cards SET amount_left='".($gc['amount_left'] - $order['gc_discount'])."' WHERE gcid='".addslashes($order['gift_card'])."'");
+		$db->query("UPDATE orders SET gc_calc=1 WHERE orderid='".$orderid."'");
+	}
 
-    $commande = new Commande($db);
-    $result = $commande->fetch($orderId);
+	global $warehouse_enabled;
+	$products = $db->all("SELECT * FROM order_items WHERE orderid='".$orderid."'");
+	foreach ($products as $k=>$v) {
+		// Skip stock updates for services (product_type=1)
+		$pt = $db->field("SELECT fk_product_type FROM llx_product WHERE rowid='".$v['productid']."'");
+		if ($pt == 1) continue;
+		$extra = unserialize($v['extra']);
+		if ($order['local_pickup'] && $order['wid']) {
+			if ($extra['variantid']) {
+				$avail = $db->field("SELECT avail FROM product_inventory WHERE rowid='".$v['productid']."' AND variantid='".$extra['variantid']."' AND wid='".$order['wid']."'");
+				$new_avail = $avail - $v['quantity'];
+				$db->query("UPDATE product_inventory SET avail=".$new_avail." WHERE variantid='".$extra['variantid']."' AND productid=".$v['productid']." AND wid='".$order['wid']."'");
+			} else {
+				$avail = $db->field("SELECT avail FROM product_inventory WHERE rowid='".$v['productid']."' AND variantid=0 AND wid='".$order['wid']."'");
+				$new_avail = $avail - $v['quantity'];
+				$db->query("UPDATE product_inventory SET avail=".$new_avail." WHERE variantid=0 AND productid=".$v['productid']." AND wid='".$order['wid']."'");
+			}
+		} elseif ($warehouse_enabled) {
+			if ($extra['variantid']) {
+				$avail_block = $db->field("SELECT avail_block FROM variants WHERE variantid='".$extra['variantid']."'");
+				$new_avail = $avail_block + $v['quantity'];
+				$db->query("UPDATE variants SET avail_block=".$new_avail." WHERE variantid='".$extra['variantid']."'");
+			} else {
+				$avail_block = $db->field("SELECT avail_block FROM products WHERE rowid='".$v['productid']."'");
+				$new_avail = $avail_block + $v['quantity'];
+				// Dolibarr stock now handled by spacart_sync_stock_movements()
+			}
+		} elseif ($extra['variantid']) {
+			$avail = $db->field("SELECT avail FROM variants WHERE variantid='".$extra['variantid']."'");
+			$new_avail = $avail - $v['quantity'];
+			$db->query("UPDATE variants SET avail=".$new_avail." WHERE variantid='".$extra['variantid']."'");
+		} else {
+			$avail = $db->field("SELECT avail FROM products WHERE rowid='".$v['productid']."'");
+			$new_avail = $avail - $v['quantity'];
+			// Dolibarr stock now handled by spacart_sync_stock_movements()
+		}
+	}
 
-    if ($result <= 0) return null;
-
-    // Security: check ownership
-    if ($fkSoc > 0 && $commande->socid != $fkSoc) {
-        return null;
-    }
-
-    // Only show spacart orders
-    if ($commande->module_source !== 'spacart') {
-        return null;
-    }
-
-    // Fetch lines
-    $commande->fetch_lines();
-
-    return $commande;
+	// Sync stock movements to Dolibarr (idempotent - safe if already done by sale chain)
+	if (function_exists('spacart_sync_stock_movements')) {
+		try { spacart_sync_stock_movements($orderid); } catch (Exception $e) {}
+	}
 }
 
-/**
- * Get shipping methods available
- */
-function spacart_get_shipping_methods($countryId = 0, $cartTotal = 0, $cartWeight = 0)
-{
-    global $db;
-    $methods = array();
+function func_increase_quantity($orderid) {
+	global $db, $userinfo, $login;
 
-    $sql = "SELECT sm.rowid, sm.label, sm.description, sm.delivery_time,";
-    $sql .= " sm.free_threshold";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_shipping_method sm";
-    $sql .= " WHERE sm.active = 1";
-    $sql .= " ORDER BY sm.position ASC";
+	$order = $db->row("SELECT * FROM orders WHERE orderid='$orderid'");
+	if ($order['gc_calc'] == '1') {
+		$gc = $db->row("SELECT * FROM gift_cards WHERE gcid='".addslashes($order['gift_card'])."'");
+		$db->query("UPDATE gift_cards SET amount_left='".($gc['amount_left'] + $order['gc_discount'])."' WHERE gcid='".addslashes($order['gift_card'])."'");
+		$db->query("UPDATE orders SET gc_calc=0 WHERE orderid='".$orderid."'");
+	}
 
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($obj = $db->fetch_object($resql)) {
-            // Check if free
-            if ($obj->free_threshold > 0 && $cartTotal >= $obj->free_threshold) {
-                $obj->cost = 0;
-                $obj->is_free = true;
-            } else {
-                // Calculate rate
-                $obj->cost = spacart_calculate_shipping_rate($obj->rowid, $countryId, $cartTotal, $cartWeight);
-                $obj->is_free = false;
-            }
-            $methods[] = $obj;
-        }
-    }
-    return $methods;
-}
+	$products = $db->all("SELECT * FROM order_items WHERE orderid='".$orderid."'");
+	foreach ($products as $k=>$v) {
+		// Skip stock updates for services (product_type=1)
+		$pt = $db->field("SELECT fk_product_type FROM llx_product WHERE rowid='".$v['productid']."'");
+		if ($pt == 1) continue;
+		$extra = unserialize($v['extra']);
+		if ($extra['variantid']) {
+			$avail = $db->field("SELECT avail FROM variants WHERE variantid='".$extra['variantid']."'");
+			$new_avail = $avail + $v['quantity'];
+			$db->query("UPDATE variants SET avail=".$new_avail." WHERE variantid='".$extra['variantid']."'");
+		} else {
+			$avail = $db->field("SELECT avail FROM products WHERE rowid='".$v['productid']."'");
+			$new_avail = $avail + $v['quantity'];
+			// Dolibarr stock now handled by spacart_reverse_stock_movements()
+		}
+	}
 
-/**
- * Calculate shipping rate for a method
- */
-function spacart_calculate_shipping_rate($methodId, $countryId, $amount, $weight)
-{
-    global $db;
-
-    // Find zone for this country
-    $zoneId = 0;
-    $sqlZone = "SELECT sze.fk_zone FROM ".MAIN_DB_PREFIX."spacart_shipping_zone_elem sze";
-    $sqlZone .= " WHERE sze.type = 'country' AND sze.value = '".(int) $countryId."'";
-    $sqlZone .= " LIMIT 1";
-    $resZone = $db->query($sqlZone);
-    if ($resZone && $db->num_rows($resZone)) {
-        $objZ = $db->fetch_object($resZone);
-        $zoneId = (int) $objZ->fk_zone;
-    }
-
-    if (!$zoneId) {
-        // Default zone
-        $sqlDef = "SELECT rowid FROM ".MAIN_DB_PREFIX."spacart_shipping_zone WHERE is_default = 1 LIMIT 1";
-        $resDef = $db->query($sqlDef);
-        if ($resDef && $db->num_rows($resDef)) {
-            $zoneId = (int) $db->fetch_object($resDef)->rowid;
-        }
-    }
-
-    // Get best matching rate
-    $sql = "SELECT sr.price, sr.rate_type, sr.min_value, sr.max_value";
-    $sql .= " FROM ".MAIN_DB_PREFIX."spacart_shipping_rate sr";
-    $sql .= " WHERE sr.fk_method = ".(int) $methodId;
-    $sql .= " AND sr.fk_zone = ".(int) $zoneId;
-    $sql .= " AND sr.active = 1";
-    $sql .= " ORDER BY sr.min_value ASC";
-
-    $resql = $db->query($sql);
-    if ($resql) {
-        while ($rate = $db->fetch_object($resql)) {
-            $compareValue = ($rate->rate_type === 'weight') ? $weight : $amount;
-            if ($compareValue >= (float) $rate->min_value && ($rate->max_value <= 0 || $compareValue <= (float) $rate->max_value)) {
-                return (float) $rate->price;
-            }
-        }
-    }
-
-    // Fallback flat rate
-    return getDolGlobalString('SPACART_DEFAULT_SHIPPING_COST', '5.00');
-}
-
-/**
- * Calculate tax for a zone
- */
-function spacart_calculate_tax($amount, $countryId)
-{
-    global $db;
-
-    $sql = "SELECT tr.rate FROM ".MAIN_DB_PREFIX."spacart_tax_rate tr";
-    $sql .= " INNER JOIN ".MAIN_DB_PREFIX."spacart_tax t ON t.rowid = tr.fk_tax";
-    $sql .= " WHERE tr.fk_country = ".(int) $countryId;
-    $sql .= " AND t.active = 1 AND tr.active = 1";
-    $sql .= " LIMIT 1";
-
-    $resql = $db->query($sql);
-    if ($resql && $db->num_rows($resql)) {
-        $obj = $db->fetch_object($resql);
-        return $amount * (float) $obj->rate / 100;
-    }
-
-    return 0;
+	// Reverse stock movements in Dolibarr (for cancellations)
+	if (function_exists('spacart_reverse_stock_movements')) {
+		try { spacart_reverse_stock_movements($orderid); } catch (Exception $e) {}
+	}
 }

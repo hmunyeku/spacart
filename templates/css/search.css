@@ -1,0 +1,110 @@
+#lng {	right: 230px;}
+.refine input {	padding: 1px 5px;
+	font-size: 11px;}
+.results {	float: left;
+	width: 600px;
+}
+.people {	width: 100%;}
+.people td {	padding: 5px 0;
+	vertical-align: top;
+	border-bottom: 1px solid #fafafa;	overflow-x: hidden;
+}
+.people b {	font-size: 11px;
+	color: #333;}
+.people .photo {	width: 50px;
+	padding-right: 10px;
+	text-align: center;}
+.filter {	z-index: 10;	background: #fff;	width: 216px;
+	padding-left: 4px;
+	position: fixed;
+	top: 70px;
+	left: 50%;
+	margin-left: 280px !important;
+}
+.sort {	margin: 2px 0 10px 0px !important;}
+.filter .jspPane {	margin-left: 0px !important;}
+.filter .jspVerticalBar, .filter .jspHorizontalBar {	display: none;
+}
+.country .jspVerticalBar, .state .jspVerticalBar, .city .jspVerticalBar, .country1 .jspVerticalBar, .state1 .jspVerticalBar, .city1 .jspVerticalBar, .country2 .jspVerticalBar, .state2 .jspVerticalBar, .city2 .jspVerticalBar, .country3 .jspVerticalBar, .state3 .jspVerticalBar, .city3 .jspVerticalBar, .ed_name1 .jspVerticalBar, .ed_name2 .jspVerticalBar, .company .jspVerticalBar, .position .jspVerticalBar {
+	display: block;
+}
+.select {	width: 200px;
+	margin: 0 0 2px 0;}
+.select .options {	min-width: 210px;
+}
+.country1 .options, .state1 .options, .city1 .options, .country2 .options, .state2 .options, .city2 .options, .country3 .options, .state3 .options, .city3 .options, .ed_name1 .options, .ed_faculty1 .options, .ed_name2 .options, .ed_faculty2 .options, .company .options, .position .options {
+	min-width: 200px;
+}
+.country .options, .state .options, .country1 .options, .state1 .options, country2 .options, .state2 .options, .country3 .options, .state3 .options {	max-height: 300px;
+}
+.noedit .options {	min-width: 204px;
+}
+.ed_name1 .active , .ed_name2 .active, .company .active, .position .active {	background: transparent;
+}
+.current {	border: 0px;    outline: none;
+    width: 93%;
+    padding: 0;
+    margin: 0;
+}
+.noedit {	margin: 10px 0 0 0;
+}
+.noedit .current {	cursor: pointer;}
+.age {	margin-top: 5px;}
+.age th {	font-weight: normal;
+	font-size: 11px;
+	padding: 0 10px 0 6px;
+}
+.age td {	padding: 0 5px;}
+.age input {	width: 50px;}
+.filter_options {	font-size: 11px;
+}
+.filter_options input {	margin: 5px 5px 5px 10px;
+}
+.dating {	padding: 0 0 0 6px;	font-size: 11px;}
+.dating .select {	width: 194px;}
+.dating h4 {	margin: 20px 0 5px 0;
+	padding: 0;
+	font-weight: normal;
+	font-size: 11px;
+}
+.dating table {
+}
+.dating table td {	padding: 0 10px 0 0;
+}
+.dating a {	padding: 5px 0 0 24px;
+}
+.select .def {	color: #574e4e;}
+.clear_filters {	float: right;
+	padding-right: 6px;
+	color: #999;
+	font-size: 11px;}
+.ed_a, .ed_a_1, .ed_a_2, .job {	width: 216px;
+	cursor: pointer;
+}
+.ed_a td, .job td {	padding: 0 5px;
+}
+.ed_a_1 td, .ed_a_2 td {	padding: 5px 5px 0 10px;
+}
+.ed_a .button, .ed_a_1 .button, .ed_a_2 .button, .job .button {	width: 10px;	text-align: center;
+}
+.job {	margin-top: 5px;}
+div.h_data {	padding: 10px 0 10px 10px;}
+div.h_data .select {	width: 190px;
+}
+table.h_data td {	padding: 2px;}
+.a2f {	width: 150px;
+	text-align: center;
+}
+.a2f button {	padding-left: 7px;
+	padding-right: 7px;
+}
+.search_form {
+	padding-top: 1px;
+}
+.search_form input {	padding: 3px 5px 3px 5px;
+	width: 496px;}
+.search input {	-webkit-transition: all 0.5s ease;
+}
+.search input.wide {	width: 520px;
+}
+#d_adv {	cursor: pointer;}

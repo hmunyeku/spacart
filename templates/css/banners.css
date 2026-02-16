@@ -1,0 +1,36 @@
+.responsive-banner {	width: 100%;}
+.banners-container {	width: 1000px;
+	margin: -10px -10px 0 -10px;}
+#banners {	padding: 0;	width: 100%;
+	overflow: hidden;
+	position: relative;
+	float: left;}
+.banners-slider div {	display: none;}
+#banners div#banner_0 {	display: block;
+}
+.banners-slider div img {	width: 100%;
+}
+#banners_nav {	position: absolute;
+	bottom: 10px;
+	right: 20px;}
+#banners_nav img {-webkit-box-shadow: 0px 0px 5px 0px rgba(50, 50, 50, 0.75);
+-moz-box-shadow:    0px 0px 5px 0px rgba(50, 50, 50, 0.75);
+box-shadow:         0px 0px 5px 0px rgba(50, 50, 50, 0.75);
+	border-radius: 0px;
+ 	width: 15px;
+ 	height: 15px;
+ 	background: #fff;
+ 	cursor: pointer;
+ 	margin-left: 5px;}
+#banners_nav img.active {	background: #d54e4e;
+	width: 13px;
+	height: 13px;
+	border: 1px solid #fff;}
+.responsive-banners {	float: left;}
+.responsive-banners img {	float: left;	margin: 10px 0 0 10px;
+	height: 300px;}
+.responsive-banners img.res-ban-1 {	width: 266px;
+}
+.responsive-banners img.res-ban-2 {
+	width: 265px;
+}

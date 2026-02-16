@@ -1,0 +1,81 @@
+.checkout-container {	width: 600px;
+	margin: 0 auto;}
+.checkout_popup {
+	width: 600px;
+	padding: 20px 20px 30px 20px;
+}
+.checkout_popup h1 {	color: #494948;
+	padding: 0 0 5px 0;
+	border-bottom: 1px solid #ccc;
+	margin: 0 0 10px 0;
+}
+td {	vertical-align: top;}
+#create_profile {	display: none;}
+.register_error {
+	color: #cc6000;
+	display: none;
+	padding: 0 0 10px 0;
+}
+.subtotal {	border-top: 1px solid #574e4e;	line-height: 18px;}
+.subtotal td {
+	padding: 0 0 0 5px;
+}
+tr.totals td {	font-weight: bold;}
+.checkout_user_table td {
+	width: 200px;
+	padding: 5px 0;
+}
+.checkout_user_table td.name {	min-width: 100px !important;}
+.checkout_user_table input {	width: 170px !important;}
+.checkout_user_table select {	width: 100% !important;
+}
+a.back-to-cart {	font-size: 17px;	text-decoration: none;
+	display: inline-block;
+	margin-right: 20px;
+}
+a.back-to-cart:hover {
+	text-decoration: none;
+}
+#place_order h3 {	font-size: 17px;
+	border: 0;}
+#place_order h3 span {	float: right;
+	cursor: pointer;
+	text-decoration: underline;
+}
+#place_order select {	width: 100%;
+	margin: 0 0 10px 0;
+}
+#place_order td.line {	font-size: 11px;
+	padding: 5px 0;
+}
+#place_order td a {	font-weight: bold;
+	font-size: 17px;
+	color: #494948;}
+.apply_coupon, .apply_gc {	text-decoration: underline;
+	cursor: pointer;}
+.coupon-error {	padding-top: 10px;	display: none;
+	color: #ff3300;}
+.checkout-guest a {
+	text-decoration: underline;
+}
+.checkout-guest a:hover {
+	text-decoration: none;
+}
+.checkout-guest a {
+	text-decoration: underline;
+}
+.checkout-guest a:hover {
+	text-decoration: none;
+}
+.choose-warehouse h2 {	padding: 10px 0 10px 5px;
+	margin: 0;
+	font-size: 14px;
+	font-weight: bold;
+	color: #7f7f7f;}
+.choose-warehouse table {	width: 100%;}
+#checkout_table .group {
+    max-width: 90%;
+}
+#place_order .group {
+    min-width: 260px;
+}

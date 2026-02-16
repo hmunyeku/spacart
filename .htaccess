@@ -1,51 +1,46 @@
-# SpaCart - Module root .htaccess
-# API URL rewriting and security
+Options -Indexes
+DirectoryIndex index.php
+ErrorDocument 404 /index.php
 
 <IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /custom/spacart/
-
-    # API routes: /custom/spacart/api/endpoint → api/index.php?route=endpoint
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^api/(.*)$ api/index.php?route=$1 [QSA,L]
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-l
+RewriteRule ^(.*)$ index.php [L]
 </IfModule>
 
-# Block direct access to sensitive files
-<FilesMatch "\.(inc\.php|sql|md|json|lock)$">
-    <IfModule mod_authz_core.c>
-        Require all denied
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Deny from all
-    </IfModule>
-</FilesMatch>
-
-# Allow composer.json to be blocked
-<Files "composer.json">
-    <IfModule mod_authz_core.c>
-        Require all denied
-    </IfModule>
-</Files>
-
-# Protect vendor directory
-<IfModule mod_rewrite.c>
-    RewriteRule ^vendor/ - [F,L]
-</IfModule>
-
-# Cache static assets
-<IfModule mod_expires.c>
-    ExpiresActive On
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType image/png "access plus 1 month"
-    ExpiresByType image/jpeg "access plus 1 month"
-    ExpiresByType image/gif "access plus 1 month"
-    ExpiresByType image/svg+xml "access plus 1 month"
-</IfModule>
-
-# Gzip compression
+# compress text, html, javascript, css, xml:
 <IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+AddOutputFilterByType DEFLATE text/plain
+AddOutputFilterByType DEFLATE text/html
+AddOutputFilterByType DEFLATE text/xml
+AddOutputFilterByType DEFLATE text/css
+AddOutputFilterByType DEFLATE application/xml
+AddOutputFilterByType DEFLATE application/xhtml+xml
+AddOutputFilterByType DEFLATE application/rss+xml
+AddOutputFilterByType DEFLATE application/javascript
+AddOutputFilterByType DEFLATE application/x-javascript
+AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/xml application/x-javascript application/xhtml+xml application/rss+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+
+  # Expire images/js/css header
+  ExpiresActive On
+  ExpiresDefault A0
+
+  # Images expires in 2 weeks
+  ExpiresByType image/png A1209600
+  ExpiresByType image/gif A1209600
+  ExpiresByType image/jpg A1209600
+  ExpiresByType image/jpeg A1209600
+  ExpiresByType image/ico A1209600
+  ExpiresByType image/x-icon A1209600
+
+  # CSS/JS now work with dynamic unique query string. 1 year expires
+  ExpiresByType text/css A31104000
+  ExpiresByType text/javascript A31104000
+  ExpiresByType application/javascript A31104000
+
 </IfModule>

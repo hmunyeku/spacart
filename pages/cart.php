@@ -1,123 +1,169 @@
 <?php
-/**
- * SpaCart - Cart page handler
- * Handles cart display and AJAX cart operations
- */
+q_load('cart', 'product');
 
-if (!defined('SPACART_BOOT')) die('Access denied');
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+	extract($_POST, EXTR_SKIP);
+	if ($get['1'] == 'add_gc') {
+		if (!is_numeric($get['2']))
+			exit;
 
-require_once SPACART_PATH.'/includes/func/func.product.php';
-require_once SPACART_PATH.'/includes/func/func.cart.php';
+		$cart['products'][] = array(
+			'cartid'	=> func_get_max_cartid() + 1,
+			'amount'	=> $get['2'],
+			'gift_card'	=> func_giftcert_generate()
+		);
 
-$action = !empty($_POST['action']) ? $_POST['action'] : (!empty($_GET['action']) ? $_GET['action'] : '');
+		$cart = func_calculate();
+		$_SESSION['cart'] = $cart;
+		if ($is_ajax) {
+			$template['cart'] = $cart;
+			if ($device == 'mobile')
+				exit(get_template_contents('common/minicart_mobile.php'));
+			else
+				exit(get_template_contents('common/minicart.php'));
+		} else
+			redirect('/cart');
 
-// === AJAX Actions ===
-if ($action) {
-    $cartId = !empty($_SESSION['spacart_cart_id']) ? (int) $_SESSION['spacart_cart_id'] : 0;
+		exit;
+	} elseif ($get['1'] == 'add') {
+		if ($options_ex == 1)
+			exit('1');
 
-    if (!$cartId) {
-        $sessionId = $_SESSION['spacart_token'] ?? session_id();
-        $customerId = !empty($spacart_customer) ? $spacart_customer->rowid : 0;
-        $cartObj = spacart_get_or_create_cart($sessionId, $customerId);
-        if ($cartObj) {
-            $cartId = $cartObj->rowid;
-            $_SESSION['spacart_cart_id'] = $cartId;
-        }
-    }
+		$productid = intval($productid);
+		$product = func_select_product($productid);
+		if (!$product)
+			exit;
 
-    switch ($action) {
-        case 'add':
-            $productId = (int) ($_POST['product_id'] ?? 0);
-            $qty = max(1, (int) ($_POST['qty'] ?? 1));
-            $variantId = (int) ($_POST['variant_id'] ?? 0);
-            $options = array();
-            foreach ($_POST as $k => $v) {
-                if (strpos($k, 'option_') === 0) {
-                    $gid = substr($k, 7);
-                    $options[$gid] = (int) $v;
-                }
-            }
-            $result = spacart_cart_add($cartId, $productId, $qty, $variantId, $options);
-            $summary = spacart_get_cart_summary($cartId);
-            $result['cart_count'] = $summary['count'];
-            $result['cart_total'] = $summary['subtotal'];
-            spacart_json_response($result);
-            exit;
+		$amount = intval($amount);
+		if (!$product_options)
+			$product_options = func_get_default_options($productid, $amount, $userinfo['membershipid']);
+		else {
+			if (!func_check_product_options($productid, $product_options))
+				exit('1');
+		}
 
-        case 'update':
-            $itemId = (int) ($_POST['item_id'] ?? 0);
-            $qty = (int) ($_POST['qty'] ?? 0);
-            $result = spacart_cart_update_qty($cartId, $itemId, $qty);
-            $summary = spacart_get_cart_summary($cartId);
-            $result['cart_count'] = $summary['count'];
-            $result['cart_total'] = $summary['subtotal'];
-            spacart_json_response($result);
-            exit;
+		if (!$cart)
+			$cart = array();
 
-        case 'remove':
-            $itemId = (int) ($_POST['item_id'] ?? ($_GET['item_id'] ?? 0));
-            if (!$itemId && !empty($get[2])) $itemId = (int) $get[2];
-            $result = spacart_cart_remove_item($cartId, $itemId);
-            $summary = spacart_get_cart_summary($cartId);
-            $result['cart_count'] = $summary['count'];
-            $result['cart_total'] = $summary['subtotal'];
-            spacart_json_response($result);
-            exit;
+		$found = false;
+		if (!$found)
+			$cart['products'][] = array(
+				'cartid'	=> func_get_max_cartid() + 1,
+				'productid'	=> $productid,
+				'quantity'	=> $amount,
+				'options'	=> $product_options
+			);
 
-        case 'coupon':
-            $code = trim($_POST['code'] ?? '');
-            $result = spacart_cart_apply_coupon($cartId, $code);
-            $summary = spacart_get_cart_summary($cartId);
-            $result['cart_count'] = $summary['count'];
-            $result['cart_total'] = $summary['subtotal'];
-            spacart_json_response($result);
-            exit;
+		$cart = func_calculate();
+		$_SESSION['cart'] = $cart;
+		if ($is_ajax) {
+			q_load('product');
+			if (!empty($product_options))
+				$variantid = func_get_variantid($product_options, $productid);
+			else
+				$variantid = false;
 
-        case 'giftcard':
-            $code = trim($_POST['code'] ?? '');
-            $result = spacart_cart_apply_giftcard($cartId, $code);
-            $summary = spacart_get_cart_summary($cartId);
-            $result['cart_count'] = $summary['count'];
-            $result['cart_total'] = $summary['subtotal'];
-            spacart_json_response($result);
-            exit;
-    }
+			$template['product'] = $product = func_select_product($productid, $variantid, $amount);
+			$template['cart'] = $cart;
+			if ($product_options) {
+				$original_price = $product['price'];
+				foreach ($product_options as $k=>$v) {
+					$group = $db->row("SELECT * FROM option_groups WHERE groupid='".addslashes($k)."'");
+					if ($group['type'] == 'g') {
+						$option = $db->row("SELECT * FROM options WHERE optionid='".addslashes($v)."'");
+						$product_options[$k] = array(
+							'group' => $group,
+							'option'	=> $option
+						);
+
+						if (!$group['variant']) {
+							if ($option['price_modifier_type'] == '$')
+								$product['price'] += $option['price_modifier'];
+							else
+								$product['price'] += $original_price * $option['price_modifier'] / 100;
+						}
+					} else {
+						$product_options[$k] = array(
+							'group' => $group,
+							'value'	=> $v
+						);
+					}
+				}
+
+				$template['product_options'] = $product_options;
+				$template['product'] = $product;
+			}
+
+			if ($device == 'mobile')
+				exit(get_template_contents('common/minicart_mobile.php').$ajax_delimiter.get_template_contents('common/popup_product_added.php'));
+			else
+				exit(get_template_contents('common/minicart.php').$ajax_delimiter.get_template_contents('common/popup_product_added.php'));
+		} else
+			redirect('/cart');
+	} else {
+		foreach ($quantity as $k=>$v)
+			foreach ($cart['products'] as $k2=>$v2)
+				if ($v2['cartid'] == $k) {
+					if (is_numeric($v) && $v > 0) {
+						$_SESSION['cart']['products'][$k2]['quantity'] = $v;
+					}
+
+					break;
+				}
+
+		redirect('/cart');
+	}
 }
 
-// === Mini-cart AJAX ===
-if (!empty($_GET['minicart'])) {
-    $cartId = !empty($_SESSION['spacart_cart_id']) ? (int) $_SESSION['spacart_cart_id'] : 0;
-    $cartData = $cartId ? spacart_load_cart($cartId) : null;
+if ($get['1'] == 'remove') {
+	foreach ($cart['products'] as $k=>$v)
+		if ($v['cartid'] == $get['2']) {
+			unset($_SESSION['cart']['products'][$k]);
+			break;
+		}
 
-    $tpl_vars = array(
-        'cart' => array(
-            'count' => $cartData ? $cartData->count : 0,
-            'total' => $cartData ? $cartData->total : 0,
-            'items' => $cartData ? $cartData->items : array()
-        )
-    );
+	if (empty($_SESSION['cart']['products']))
+		$_SESSION['cart'] = array();
 
-    $page_html = spacart_render(SPACART_TPL_PATH.'/common/minicart.php', $tpl_vars);
-    $page_title = '';
-    $breadcrumbs_html = '';
-    return;
+	func_save_cart();
+	func_remove_cart();
+	if ($is_ajax) {
+		$template['cart'] = $_SESSION['cart'];
+		if ($device == 'mobile')
+			exit(get_template_contents('common/minicart_mobile.php'));
+		else
+			exit(get_template_contents('common/minicart.php'));
+	} else
+		redirect('/cart');
+} elseif ($get['1'] == 'clear') {
+	$_SESSION['cart'] = array();
+	func_save_cart();
+	func_remove_cart();
+	if ($is_ajax) {
+		$template['cart'] = array();
+		if ($device == 'mobile')
+			exit(get_template_contents('common/minicart_mobile.php'));
+		else
+			exit(get_template_contents('common/minicart.php'));
+	} else
+		redirect('/');
 }
 
-// === Cart page display ===
-$cartId = !empty($_SESSION['spacart_cart_id']) ? (int) $_SESSION['spacart_cart_id'] : 0;
-$cartData = $cartId ? spacart_load_cart($cartId) : null;
+if ($cart['products']) {
+	$cart = func_calculate();
+	if ($login)
+		$calculations = func_cart_calculations($userinfo);
+	else
+		$calculations = func_cart_calculations($_SESSION['user']);
 
-$page_title = 'Panier - '.$spacart_config['title'];
+	$template['cart'] = $cart = $_SESSION['cart'] = $calculations['cart'];
+	$template['products'] = $cart['products'];
+}
 
-$bc_items = array(
-    array('label' => 'Accueil', 'url' => '#/'),
-    array('label' => 'Panier', 'url' => '')
-);
-$breadcrumbs_html = spacart_breadcrumbs($bc_items);
+$template['page'] = get_template_contents('cart/body.php');
 
-$tpl_vars = array(
-    'cart' => $cartData,
-    'config' => $spacart_config
-);
-
-$page_html = spacart_render(SPACART_TPL_PATH.'/cart/body.php', $tpl_vars);
+if ($is_ajax) {
+	$page_title = lng('Cart');
+	$result = array($template['page'], $page_title, $template['bread_crumbs_html'], $get['0'], $template['parentid']);
+	exit(json_encode($result));
+}

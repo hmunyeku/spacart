@@ -1,0 +1,61 @@
+.blogs {	width: 100%;}
+.blogs .author {	float: left;	width: 100%;
+	padding: 0 0 10px 0;
+}
+.blogs .author a {	font-size: 16px;
+	font-weight: 500;
+}
+.blogs .author i {
+	float: right;
+}
+.blogs .image {
+	margin: 10px 10px 10px 0;
+	float: left;
+	width: 300px;
+	text-align: center;
+}
+.blogs .image img {
+	max-width: 300px;
+	border-radius: 25px;
+}
+.blogs .descr {	padding: 10px;	margin-bottom: 30px;
+}
+.blogs .descr div {	padding: 10px 0 10px 0;}
+.blogs .descr div img {	margin-bottom: -3px;}
+.blog .actions {	float: right;
+}
+.blog .actions img {
+	margin-bottom: -3px;
+}
+.blog .image {
+	margin: 10px 0 0 0;
+}
+.blog .fulldescr {
+	padding: 10px 10px 20px 10px;
+}
+.blog_comments .author {	padding: 10px 0;	width: 100%;}
+.blog_comments .author .quote {	float: right;
+}
+.blog_comments .comment {	width: 100%;
+	padding: 10px 10px 30px 10px;}
+form[name="blogform"] a img {
+	margin: 0 5px -3px 0;}
+@media only screen and (min-width: 800px) {
+	.blog .image {
+	    margin: 10px 20px 20px 0;
+	    float: left;
+	    width: auto;
+	}
+	.news .image {
+	    width: auto;
+	    margin: 10px 20px 20px 0;
+	    float: left;
+	}
+}
+@media only screen and (max-width: 800px) {
+	.blog .actions {
+		display: block;
+		float: none;
+		text-align: right;
+	}
+}

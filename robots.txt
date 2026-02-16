@@ -1,0 +1,10 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /backoffice/
+Disallow: /includes/
+Disallow: /api/
+Disallow: /cron/
+Disallow: /scripts/
+Disallow: /files/
+Disallow: /stripe/
+Allow: /

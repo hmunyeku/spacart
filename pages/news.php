@@ -1,47 +1,57 @@
 <?php
-/**
- * SpaCart - News page handler
- */
-if (!defined('SPACART_BOOT')) die('Access denied');
-
-require_once SPACART_PATH.'/includes/func/func.blog.php';
-
-$articleId = !empty($get[1]) ? (int) $get[1] : 0;
-
-if ($articleId) {
-    $article = spacart_get_news_article($articleId);
-    if (!$article) {
-        $page_html = '<div class="spacart-empty-state"><i class="material-icons large grey-text">error</i><p>Article non trouvé</p></div>';
-        $page_title = 'Article non trouvé';
-        $breadcrumbs_html = '';
-        return;
-    }
-
-    $page_title = htmlspecialchars($article->title).' - '.$spacart_config['title'];
-    $bc_items = array(
-        array('label' => 'Accueil', 'url' => '#/'),
-        array('label' => 'Actualités', 'url' => '#/news'),
-        array('label' => $article->title, 'url' => '')
-    );
-    $breadcrumbs_html = spacart_breadcrumbs($bc_items);
-
-    $tpl_vars = array('article' => $article, 'type' => 'news', 'config' => $spacart_config);
-    $page_html = spacart_render(SPACART_TPL_PATH.'/blog/article.php', $tpl_vars);
-} else {
-    $pageNum = !empty($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-    $result = spacart_get_news_articles($pageNum, 9);
-
-    $page_title = 'Actualités - '.$spacart_config['title'];
-    $bc_items = array(array('label' => 'Accueil', 'url' => '#/'), array('label' => 'Actualités', 'url' => ''));
-    $breadcrumbs_html = spacart_breadcrumbs($bc_items);
-
-    $tpl_vars = array(
-        'articles' => $result['items'],
-        'total' => $result['total'],
-        'total_pages' => $result['pages'],
-        'current_page' => $pageNum,
-        'type' => 'news',
-        'config' => $spacart_config
-    );
-    $page_html = spacart_render(SPACART_TPL_PATH.'/blog/body.php', $tpl_vars);
+q_load('news');
+if ($_GET['nosearch']) {
+	$_SESSION['news_substring'] = '';
+	redirect('/news');
 }
+
+if ($_SERVER['REQUEST_METHOD'] == "POST") {
+	extract($_POST, EXTR_SKIP);
+	$_SESSION['news_substring'] = $substring;
+	redirect('/news');
+}
+
+$template['head_title'] = lng('News').'. '.$template['head_title'];
+$template['bread_crumbs'][] = array('/news', lng('News'));
+
+if (!empty($get['1'])) {
+	$news = $db->row("SELECT b.*, i.imageid, i.file, i.x, i.y, u.firstname, u.lastname FROM news b LEFT JOIN users u ON b.author=u.id LEFT JOIN news_images i ON b.newsid=i.newsid WHERE (b.newsid='".$get['1']."' OR b.cleanurl='".str_replace('.html', '', $get['1'])."') AND b.active='Y'");
+	if (empty($news)) {
+		$_SESSION['alerts'][] = array(
+				'type' => 'e',
+				'content' => lng('News not found')
+		);
+
+		redirect('/news');
+	}
+
+	$template['bread_crumbs'][] = array('', $news['title']);
+	$db->query("UPDATE news SET counter='".($news['counter'] + 1)."' WHERE newsid='$news[newsid]'");
+	$news["fulldescr"] = func_eol2br($news["fulldescr"]);
+	$template["news"] = $news;
+	$template['js'][] = 'news';
+} else {
+	if ($_SESSION['news_substring']) {
+		$template['news_substring'] = $_SESSION['news_substring'];
+		$substring_condition = " AND (b.descr LIKE '%".addslashes($_SESSION['news_substring'])."%' OR b.fulldescr LIKE '%".addslashes($_SESSION['news_substring'])."%' OR b.title LIKE '%".addslashes($_SESSION['news_substring'])."%')";
+	}
+
+	$total_items = $db->field("SELECT COUNT(*) FROM news b WHERE b.active='Y'$substring_condition");
+	if ($total_items > 0) {
+		$objects_per_page = $config['News']['newss_per_page'];
+		require SITE_ROOT."/includes/navigation.php";
+
+		$template["navigation_script"] = $current_location."/news/?";
+
+		$newss = $db->all("SELECT b.*, i.imageid, i.file, i.x, i.y, u.firstname, u.lastname FROM news b LEFT JOIN users u ON u.id=b.author LEFT JOIN news_images i ON b.newsid=i.newsid WHERE b.active='Y'$substring_condition ORDER BY b.newsid DESC LIMIT $first_page, $objects_per_page");
+		foreach ($newss as $k=>$v) {
+			$newss[$k]["descr"] = strip_tags($v["descr"]);
+		}
+
+		$template["newss"] = $newss;
+	}
+}
+
+$template['top_read'] = $db->all("SELECT * FROM news ORDER BY counter DESC LIMIT 5");
+
+$template['page'] = get_template_contents('news/body.php');

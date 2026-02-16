@@ -1,0 +1,106 @@
+.profile td {	height: 26px;	padding: 2px;}
+.profile td input {	padding: 2px 4px;}
+.profile td span {	cursor: pointer;}
+.logsec {
+	padding: 10px 0;
+}
+.logsec input {
+	border: 1px solid #f5f5f5;
+	-webkit-border-radius: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	padding: 10px;
+	width: 140px;
+	font-size: 17px;
+	font-weight: bold;
+	color: #e5e5e5;
+	margin: 0 0 5px 0;
+}
+.logsec input:hover {
+	color: #aaa;
+	border: 1px solid #ccc;
+	cursor: pointer;
+}
+.psec .e {	display: none;}
+.privacy td {	height: 26px;
+	padding: 2px;
+	white-space: nowrap;}
+.privacy th {	font-weight: normal;
+	text-align: right;
+	padding: 2px;
+	width: 310px;
+}
+.dating td {	vertical-align: top;
+	line-height: 20px;}
+.dating h3 {	margin: 0;
+	padding: 5px 0 0 0;
+	color: #ccc;
+	border-bottom: 1px solid #f5f5f5;}
+.privacy h2 {	margin: 10px 0 5px 0;
+	padding: 0;}
+.how_find_love, .how_make_money {
+	display: none;
+	padding: 5px 15px 15px 15px;
+}
+.country, .state, .city, .ed_name, .ed_faculty, .company, .position {	min-width: 149px;}
+.country input, .state input, .city input, .ed_name input, .ed_faculty input, .company input, .position input {	min-width: 149px;}
+.country .options, .state .options, .city .options {	min-height: 300px;
+	min-width: 159px;
+}
+.select.state, .select.city {	margin: 5px 0 0 0;	clear: both;}
+.title {	border-bottom: 1px dashed #999;
+	float: left;}
+h2 {	margin-top: 13px;}
+.history_list {	width: 500px;
+}
+.history_list tr td {	padding: 5px;	vertical-align: top;
+	border-bottom: 1px solid #f5f5f5;}
+.history_list .name {	width: 200px;
+	padding-right: 20px;
+}
+.history_list .years {	padding: 5px 20px;
+	width: 100px;
+}
+.add_ed, .add_job {	cursor: pointer;
+	padding-bottom: 15px;
+}
+.add_ed td, .add_job td {	vertical-align: top;
+	padding: 2px;}
+.new_ed, .new_job {	display: none;	width: 300px;	margin-top: 10px;
+}
+.new_ed td, .new_job td {	padding: 1px;
+	white-space: nowrap;
+}
+.new_ed td.name, .new_job td.name {	width: 70px;
+}
+.new_ed table td {	padding-left: 0px;
+}
+.new_ed input, .new_job input {	margin: 0;}
+.country .current, .state .current, .city .current, .ed_name .current, .ed_faculty .current, .company .current, .position .current {
+	border: 0px;
+    outline: none;
+    width: 93%;
+    padding: 0;
+    margin: 0;
+}
+.ed_name .active, .ed_faculty .active, .company .active, .position .active {	background: #fff;}
+.age td {	padding: 0;}
+#about {	display: none;
+}
+.advanced .newrecord {
+	display: block;
+}
+.newrecord .buttons td {	padding: 0;}
+#document_title {	display: none;}
+.text_size .jspTrack {	display: none;}
+.text_size .options, .text_color .options {
+	max-height: 1000px;
+}
+.select .current font {	font-size: 17px !important;}
+.allowed {	color: #00bd00;
+	padding-left: 2px;}
+.not_allowed {
+	color: #bd0000;
+	padding-left: 2px;
+}
+.d_advanced {	cursor: pointer;}

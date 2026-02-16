@@ -172,6 +172,7 @@ Search = Rechercher
 SearchResults = Resultats de recherche
 NoResults = Aucun resultat trouve
 InstantSearch = Recherche rapide
+Rechercher... = Rechercher...
 
 # Misc
 ViewAll = Voir tout
@@ -187,3 +188,57 @@ RecentlyViewed = Recemment consultes
 Newsletter = Newsletter
 Subscribe = S'abonner
 SubscribeSuccess = Inscription reussie !
+
+# Multi-language
+Language = Langue
+SelectLanguage = Choisir la langue
+French = Francais
+English = Anglais
+SelectCurrency = Choisir la devise
+
+# Header
+Home = Accueil
+Accueil = Accueil
+AllProducts = Tous les produits
+Cart = Panier
+Wishlist = Favoris
+SignIn = Connexion
+SignUp = Inscription
+
+# Footer
+QuickLinks = Liens rapides
+Information = Informations
+FollowUs = Suivez-nous
+PoweredBy = Propulse par SpaCart
+SubscribeNewsletter = Inscrivez-vous a notre newsletter
+SubscribeDesc = Recevez nos dernieres offres et nouveautes directement dans votre boite mail
+YourEmail = Votre adresse email
+
+# Product
+OutOfStock = Rupture de stock
+InStock = En stock
+New = Nouveau
+Description = Description
+Details = Details
+CustomerReviews = Avis clients
+LeaveReview = Laisser un avis
+YourName = Votre nom
+ReviewTitle = Titre (optionnel)
+YourReview = Votre avis
+SubmitReview = Publier l'avis
+FromUnits = A partir de %s unites
+FreeShipping = Livraison gratuite
+FreeShippingDesc = Livraison offerte des 50€ d'achat
+SecurePayment = Paiement securise
+MoneyBack = Garantie remboursement
+MoneyBackDesc = 30 jours pour changer d'avis
+Support247 = Support 24/7
+Support247Desc = Une question ? Contactez-nous
+ViewCart = Voir le panier
+Products = Produits
+ViewAllNew = Voir toutes les nouveautes
+WhatCustomersSay = Ce que disent nos clients
+LatestNews = Dernieres actualites
+PasswordReset = Reinitialisation du mot de passe
+Help = Aide
+SupportDesk = Support
