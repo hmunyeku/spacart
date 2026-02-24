@@ -34,7 +34,7 @@ class modSpaCart extends DolibarrModules
 		$this->db = $db;
 
 		// Module ID (unique)
-		$this->numero = 500150;
+		$this->numero = 141410;
 
 		// Family
 		$this->family = "portal";
